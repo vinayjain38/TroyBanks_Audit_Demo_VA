@@ -1,3 +1,43 @@
+"""
+File: streamlit.py
+
+Overview:  
+- Purpose: Streamlit UI to browse an accounts last 12 months of usage and compare billing under different VE schedules.  
+- Entry: run with `streamlit run src/streamlit.py`.
+
+Setup / imports:  
+- Project root hack: inserts repo root into `sys.path` so `src.*` imports work.  
+- Main imports: `streamlit as st`, `pandas as pd`, schedule functions from `src.app_new`, and paths (`USAGE_INT`, `RIDERS_OUT`) from `src.paths`.
+
+Data loading:  
+- `load_all()`: calls `load_usage(USAGE_INT)` and `load_riders(RIDERS_OUT)`, ensures `customer_name` exists. Returns `usage_df, riders_df`.
+
+Controls & filtering:  
+- Account dropdown: builds `acct_display` = `contract_account + " | " + customer`. Selected `contract_id` filters `usage_df`.  
+- Schedule dropdown: lists keys from `SCHEDULE_FUNCS` and sets `schedule_id`.
+
+Tab 1 — Account Details:  
+- Cleans `bill_period_end` to datetime, drops rows without dates, sorts and takes last 12 rows, formats dates, and displays a table with core columns (`bill_period_end`, `usage_kwh`, `charges`, etc.).
+
+Tab 2 — Rate Comparison:  
+- Runs the selected schedule: `schedule_out = func(df_last12, riders_df)`.  
+- Merges base columns (`bill_period_end`, `current_rate`, `usage_kwh`, `demand_kw`, `charges`) with `schedule_out` side-by-side.  
+- Adds a totals row via `add_total()` (numeric sums, `bill_period_end="TOTAL"`).  
+- Removes any `case_type` columns and reorders to put `bill_period_end` first.  
+- Builds a `column_config` to format rider columns (`ve*_rider_charge`) with `RIDER_DECIMALS = 6` using `st.column_config.NumberColumn`.  
+- Displays the DataFrame with `st.dataframe(..., column_config=col_cfg)`.
+
+Export:  
+- `export_excel()` builds an in-memory Excel via `pd.ExcelWriter(..., engine="xlsxwriter")`. A `st.download_button` lets user download the comparison.
+
+Assumptions & caveats:  
+- `src.app_new` schedule functions must return per-row columns the UI expects (e.g., `ve{sid}_rider_charge`, `ve{sid}_es_charge`, `ve{sid}_cust_charge`).  
+- Date parsing drops invalid rows — accounts without valid bill dates will show a warning.  
+- `xlsxwriter` must be installed for Excel export.  
+- Large data files should typically remain out of git or be managed with Git LFS.
+
+"""
+
 # import streamlit as st
 # import pandas as pd
 # import os
@@ -550,20 +590,6 @@ with tab2:
     #     pass
 
     st.dataframe(merged_totals, width='stretch', height=500, hide_index=True, column_config=col_cfg)
-
-    
-
-    # Display table
-    # st.dataframe(
-    #     merged_totals.style.apply(
-    #         lambda row: ["font-weight: bold" if row.name == "TOTAL" else "" for _ in row],
-    #         axis=1
-    #     ),
-    #     width='stretch',
-    #     height=500,
-    #     hide_index=True
-    # )
-
 
 
     # Excel download

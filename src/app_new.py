@@ -1,3 +1,47 @@
+# Overview:
+
+# File: app_new.py — billing engine that reads base usage + schedule/rider parameter sheets, computes per-row charges for multiple VE schedules, and writes a combined output.
+# Key helpers:
+
+# load_usage(): loads the base usage Excel, ensures usage_kwh, charges, current_rate, demand_kw exist.
+# load_riders(): loads the riders Excel and normalizes columns: schedule_code, numeric rider_total_per_kwh and rider_total_per_kw.
+# Schedule functions (core logic):
+# Each schedule function (120, 154, 102, 100, 110) follows the same pattern:
+
+# Read sheet name from the schedules workbook (SCHEDULES_XLSX).
+# Extract customer charge(s), distribution rate(s), ES supply rates, and riders (per-kWh and per-kW) from parameter rows.
+# Determine billing type per account (Non‑Demand vs Demand) by checking last-12-months usage rules (accounts with all monthly usage < 10k → Non-Demand; other schedules use variations like <=49 kWh to pick unmetered). This sets 'is_nondemand'.
+
+# Compute ES charge:
+# For Non‑Demand: apply a flat ES rate (seasonal where applicable).
+# For Demand: apply tiered ES buckets (150‑kWh buckets, up to 4 tiers) seasonally where defined.
+# Each schedule returns an ES charge column (e.g., ve110_es_charge, ve100_es_charge) computed per-row.
+
+# Compute riders and other pieces:
+# Rider charge = usage_kwh * rider_kwh + demand_kw * rider_kw (kW part suppressed for Non‑Demand where required).
+
+# Distribution charge = dist_rate * usage_kwh (per-row).
+
+# Customer charge applied per-row (metered vs unmetered or demand/non-demand).
+
+# Aggregate total: *_calculated_amount = cust + dist + es + rider; *_savings = charges - calculated_amount; *_case_type indicates whether the current rate equals that schedule.
+
+# Return shape:
+# Each schedule returns a DataFrame with the calculated columns for that schedule (calculated amount, savings, case_type) plus parameter columns (customer charge, dist rate, ES rate/charge where applicable, and rider values). These are concatenated into the combined output in main().
+
+# Registration & main loop:
+# SCHEDULE_FUNCS maps schedule ids ('120','154','102','100','110') → functions.
+# main() loads usage and riders once, runs each schedule in a loop, concatenates results side-by-side into combined, and writes OUTPUT_PATH Excel after each schedule run (timestamping disabled; file overwritten).
+
+# Implementation notes & caveats:
+# Parameter extraction relies on specific column values (Category, Sub-Category, Item, Condition / Tier); format changes in the Excel will break lookups.
+# ES tier handling uses fixed 150 kWh buckets for demand schedules — logic assumes tier rows exist and raises if missing.
+# Some schedules compute an implied per-kWh ES rate by dividing ES charge by usage (watch for zero usage rows). -- Remove logic
+# Rider values are parsed as numeric per-kWh/per-kW via _parse_money_series in load_riders.
+# Paths and constants are imported from src.paths (e.g., SCHEDULES_XLSX, USAGE_INT, RIDERS_OUT, EXPORT_DIR) — ensure those are set correctly.
+# Writing OUTPUT_PATH after each schedule overwrites the file; consider writing once at the end if you want a single final file.
+
+
 #!/usr/bin/env python3
 import os
 import sys

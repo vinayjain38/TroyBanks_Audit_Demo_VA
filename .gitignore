@@ -2,12 +2,3 @@
 __pycache__/
 *.pyc
 
-data/interim/
-data/export/
-rider_tables/
-*.xlsx
-*.xlsb
-*.pdf
-
-# allow committed template/example files if you want
-!data/raw/.gitkeep

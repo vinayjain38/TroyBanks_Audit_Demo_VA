@@ -1,26 +1,72 @@
 # riders_table.py
-"""
-Riders pipeline (Fixed IO):
-1) Extract rider tables from tariff PDF (RAW)
-2) Parse each schedule row:
-   - If unit is inside value cell, parse it
-   - If unit is in adjacent cell, detect and parse it
-3) Aggregate into:
-   - AGGREGATE RIDER ADJUSTMENT PER KWH
-   - AGGREGATE RIDER ADJUSTMENT PER KW
-4) Write:
-   data/riders.xlsx
 
-Run:
-    python riders_table.py
+"""
+# Overview
+# - File: riders_table_new.py — extracts rider tables from a tariff PDF, parses per-schedule rider amounts (kWh and kW), aggregates them, and writes a human-readable Excel `riders.xlsx` that matches the schema expected by `src.app_new.py`.
+
+# Pipeline (high level)  
+# - Input: PDF at `RIDERS_PDF` (from `src.paths`).  
+# - Detect rider tables in the PDF (stream + lattice modes via Camelot).  
+# - For each detected raw table:
+#   - Save a raw XLSX (debug/audit).  
+#   - Parse each schedule row to sum per-schedule rider amounts separated by unit (/kWh or /kW).  
+# - Aggregate duplicates across pages/tables.  
+# - Format totals as dollar strings and write `RIDERS_OUT` XLSX.
+
+# Key functions & responsibilities
+# - `is_valid_rider_rate_table(df)`  
+#   - Heuristics to accept/reject a Camelot table as a rider table: at least 6 columns, a header row containing "RATE SCHEDULE", a header block containing "RIDER", schedule-like rows below, and at least one `$` value present.
+
+# - `extract_rate_schedule_tables(pdf_path)`  
+#   - Runs Camelot (`stream` + `lattice`) and returns all tables that pass `is_valid_rider_rate_table`.
+
+# - `_find_header_row_index(df)`  
+#   - Finds the header row index by searching for "RATE SCHEDULE" (first ~30 rows).
+
+# - `_parse_amount_unit(cell)` and `_parse_unit_only(cell)`  
+#   - Parse amount strings and optional inline units. Handles patterns like `$0.001242`, `$0.001242/kWh`, `"0"`, or `"/kWh"` in an adjacent cell.
+
+# - `_table_to_riders_totals(df_raw)`  
+#   - Main parser for one raw table: locates header, iterates data rows, extracts schedule number via regex, scans columns and accumulates `kwh_sum` and `kw_sum` using inline-unit or adjacent-unit rules. Returns a DataFrame with per-schedule numeric totals.
+
+# - `build_riders_xlsx_from_pdf_tables(tables)`  
+#   - Concatenates per-table parts, groups by schedule, sums duplicates, and renames columns to the `riders.xlsx` schema (`RATE SCHEDULE`, `AGGREGATE RIDER ADJUSTMENT PER KWH`, `AGGREGATE RIDER ADJUSTMENT PER KW`).
+
+# - `main()`  
+#   - Coordinates the workflow: detect tables, save raw tables, parse and aggregate, format as `$` strings (6 decimals), write `RIDERS_XLSX`, and print confirmation.
+
+# Important regexes / tokens
+# - `RATE_SCHEDULE_RE` — matches "RATE SCHEDULE" header.  
+# - `RIDER_TOKEN` — matches "RIDER" header tokens.  
+# - `SCHEDULE_ROW_RE` — finds schedule numbers in first column.  
+# - `INLINE_RE` — parses inline money with optional `/(kwh|kw)` unit.  
+# - `UNIT_ONLY_RE` — detects adjacent unit-only cells like `/kWh`.
+
+# Output format
+# - Writes `RIDERS_OUT` Excel with columns:
+#   - `RATE SCHEDULE` (e.g., "SCHEDULE 120")
+#   - `AGGREGATE RIDER ADJUSTMENT PER KWH` (string like `$0.001242`)
+#   - `AGGREGATE RIDER ADJUSTMENT PER KW`  (string like `$4.485000`)
+
+# Caveats & notes
+# - Camelot requires text-based (not scanned image) PDFs, and may need `ghostscript`/`tk` installed; detection may fail on scanned or badly-structured PDFs.  
+# - Current output formats amounts as strings (dollar-formatted). If you need numeric columns for calculations, add numeric helper columns (commented code shows how).  
+# - Heuristics assume the PDF table layout is consistent (units inline or in next column). Irregular layouts may need additional parsing rules.  
+# - Duplicate schedule entries across pages are summed; ensure that’s the desired behavior.  
+# - The parser ignores cells it cannot parse as amounts; review raw saved tables (`table_p{page}_t{idx}_raw.xlsx`) when debugging.
+
+# Suggestions / small improvements
+# - Export both formatted strings and numeric `_NUM` columns (uncomment helpers) so downstream code can use numbers directly.  
+# - Add logging and unit tests for `_parse_amount_unit` and `_table_to_riders_totals`.  
+# - Add a fallback or OCR path (e.g., `pdfplumber` → Tesseract) for scanned PDFs.  
+# - Make the money-format decimal precision configurable.
 """
 
 import re
 from pathlib import Path
-from typing import List, Tuple, Optional, Dict
+from typing import List, Tuple, Optional
 import camelot
 import pandas as pd
-
 
 from src.paths import RIDERS_PDF, RIDERS_DIR, RIDERS_OUT
 
