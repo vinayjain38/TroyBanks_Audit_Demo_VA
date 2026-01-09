@@ -3,7 +3,7 @@
 A Streamlit-based web application that calculates and compares electricity billing charges under multiple VEPGA rate schedules (e.g., Schedule 100, 110, 154, etc.).  
 The tool processes historical account usage, applies billing rules defined in Excel rate schedules, and provides a 12-month comparison of customer charges, distribution charges, electricity supply (ES) charges, and riders.
 
-## Features
+## 🚀 Features
 ✓ Upload customer usage and rider data
 - Accepts billing records with:
     ```
