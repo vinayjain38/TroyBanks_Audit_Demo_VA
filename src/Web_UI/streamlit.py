@@ -207,13 +207,13 @@ import streamlit as st
 import pandas as pd
 import re
 
-from src.app_new import (
+from src.Billing_Engine.app_new import (
     load_usage, load_riders,
     schedule_100, schedule_102, schedule_110,
     schedule_120, schedule_154,
     SCHEDULE_FUNCS)
 #    USAGE_PATH, RIDERS_PATH
-from src.paths import USAGE_INT, RIDERS_OUT
+from src.Utils.paths import USAGE_INT, RIDERS_OUT
 
 
 # ---------------------------------------------------

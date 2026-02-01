@@ -33,14 +33,15 @@ This project helps electricity customers in Virginia Beach understand how their 
 ```
 VA_test/
 ├── src/
-│   ├── __init__.py
-│   ├── streamlit.py                          # 🎨 Web UI dashboard
 │   ├── va_step1_base.py                      # 📥 Load & normalize raw data
 │   ├── va_step2_anomalies.py                 # 📊 Analyze usage patterns
 │   ├── riders_table_new.py                   # 🏷️  Parse rider rates
-│   ├── Billing engine/
+│   ├── new-bills-profile.py                  # 📋 Additional billing profile logic
+│   ├── Billing Engine/
 │   │   └── app_new.py                        # ⚙️  Core billing calculations
-│   └── Configuration_and_paths/
+│   ├── Web_UI/
+│   │   └── streamlit.py                      # 🎨 Web UI dashboard
+│   └── Utils/
 │       └── paths.py                          # 🔧 Configuration & file paths
 │
 ├── data/
@@ -49,17 +50,19 @@ VA_test/
 │   ├── interim/
 │   │   ├── va_step1_base_new.xlsx                 # Step 1 output
 │   │   └── va_step2_anomalies.xlsx                # Step 2 output
-│   ├── schedules/
-│   │   └── Mini_Edit_VEPGA_Schedules_Compact.xlsx # Rate schedule parameters
-│   ├── rider_tables/
-│   │   └── [rider rate files]                     # Rider/surcharge data
+│   ├── rider_tables/                        # Legacy rider rate files
+│   ├── rider_tables_new/                     # Updated rider rate files
 │   └── export/
-│       └── usage_savings_output.xlsx              # Final billing comparison
+│       └── usage_savings_output.xlsx         # Final billing comparison
 │
 ├── test/
 │   ├── app.py                                # Legacy test version
 │   └── riders_table.py                       # Legacy rider parser
 │
+├── .git/                                     # Version control
+├── .gitignore                                # Git ignore rules
+├── venv/                                     # Python virtual environment
+├── __pycache__/                              # Python cache
 ├── requirements.txt                          # Python dependencies
 ├── README.md                                 # This file
 └── FILE_GUIDE.md                             # Detailed file documentation
@@ -126,7 +129,7 @@ Five schedule calculation functions:
 - Compare current vs. proposed schedules
 - View calculated vs. actual charges
 - Export comparison to Excel
-- **Run:** `streamlit run src/streamlit.py`
+- **Run:** `streamlit run src/Web_UI/streamlit.py`
 
 ### 5. **Rider Management (riders_table_new.py)**
 - Parses surcharge/rider rate tables
@@ -173,7 +176,7 @@ pip install -r requirements.txt
 ### 1. Prepare Data
 Ensure these files exist:
 - `data/raw/City of VA Beach Usage History.xlsb` — Original billing data
-- `data/schedules/Mini_Edit_VEPGA_Schedules_Compact.xlsx` — Rate parameters
+- `data/raw/Mini_Edit_VEPGA_Schedules_Compact.xlsx` — Rate parameters (schedule definitions)
 - `data/rider_tables/[rider files]` — Rider rates
 
 ### 2. Run Data Pipeline
@@ -192,13 +195,13 @@ python src/va_step2_anomalies.py
 
 **Step 3: Calculate billing comparisons**
 ```bash
-python src/Billing\ engine/app_new.py
+python src/Billing\ Engine/app_new.py
 # → Creates: data/export/usage_savings_output.xlsx
 ```
 
 ### 3. View Results
 ```bash
-streamlit run src/streamlit.py
+streamlit run src/Web_UI/streamlit.py
 ```
 Opens interactive dashboard at `http://localhost:8501`
 
@@ -208,9 +211,9 @@ Opens interactive dashboard at `http://localhost:8501`
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ Raw Input: City of VA Beach Usage History.xlsb                  │
-│ + Rate schedules: Mini_Edit_VEPGA_Schedules_Compact.xlsx        │
-│ + Riders: [rider tables]                                        │
+│ Raw Input: data/raw/City of VA Beach Usage History.xlsb         │
+│ + Schedules: data/raw/Mini_Edit_VEPGA_Schedules_Compact.xlsx    │
+│ + Riders: data/rider_tables_new/[rider tables]                  │
 └─────────────────────┬───────────────────────────────────────────┘
                       ↓
         ┌─────────────────────────────┐
@@ -260,7 +263,7 @@ Opens interactive dashboard at `http://localhost:8501`
 
 ## 🔧 Configuration
 
-Edit `src/Configuration_and_paths/paths.py` to set:
+Edit [src/Utils/paths.py](src/Utils/paths.py) to set:
 
 ```python
 SCHEDULES_XLSX = "path/to/Mini_Edit_VEPGA_Schedules_Compact.xlsx"
@@ -271,7 +274,7 @@ EXPORT_DIR = "path/to/data/export/"
 
 Paths default to:
 ```
-data/schedules/Mini_Edit_VEPGA_Schedules_Compact.xlsx
+data/raw/Mini_Edit_VEPGA_Schedules_Compact.xlsx
 data/interim/va_step1_base_new.xlsx
 data/rider_tables_new/[rider file]
 data/export/
@@ -292,12 +295,13 @@ See `FILE_GUIDE.md` for detailed documentation of:
 
 | File | Purpose |
 |------|---------|
-| `va_step1_base.py` | Load XLSB, normalize dates/columns, filter VA, output base table |
-| `va_step2_anomalies.py` | Add YoY analysis, anomaly detection, 12-month summaries |
-| `app_new.py` | Calculate charges for 5 schedules, compare vs. current, compute savings |
-| `streamlit.py` | Interactive dashboard: browse accounts, compare schedules, export |
-| `riders_table_new.py` | Parse rider rates, normalize money formats |
-| `paths.py` | Centralized configuration and file paths |
+| [src/va_step1_base.py](src/va_step1_base.py) | Load XLSB, normalize dates/columns, filter VA, output base table |
+| [src/va_step2_anomalies.py](src/va_step2_anomalies.py) | Add YoY analysis, anomaly detection, 12-month summaries |
+| [src/new-bills-profile.py](src/new-bills-profile.py) | Additional billing profile analysis |
+| [src/Billing Engine/app_new.py](src/Billing\ Engine/app_new.py) | Calculate charges for 5 schedules, compare vs. current, compute savings |
+| [src/Web_UI/streamlit.py](src/Web_UI/streamlit.py) | Interactive dashboard: browse accounts, compare schedules, export |
+| [src/riders_table_new.py](src/riders_table_new.py) | Parse rider rates, normalize money formats |
+| [src/Utils/paths.py](src/Utils/paths.py) | Centralized configuration and file paths |
 
 ---
 
@@ -338,7 +342,7 @@ All parameters (customer charge, dist rate, ES rates, riders) extracted from Exc
 - Check Category, Sub-Category, Item, Condition/Tier values
 
 ### Streamlit not loading
-- Run: `streamlit run src/streamlit.py` from project root
+- Run: `streamlit run src/Web_UI/streamlit.py` from project root
 - Check output path exists: `data/export/usage_savings_output.xlsx`
 
 ---

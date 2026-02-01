@@ -48,7 +48,7 @@ import sys
 from datetime import datetime
 import pandas as pd
 import numpy as np
-from src.Configuration_and_paths.paths import RIDERS_OUT, SCHEDULES_XLSX, EXPORT_DIR, USAGE_INT
+from src.Utils.paths import RIDERS_OUT, SCHEDULES_XLSX, EXPORT_DIR, USAGE_INT
 
 # ==== CONFIGURATION ====
 # This is va_step1_base usage file
