@@ -4,7 +4,6 @@ __pycache__/
 *.pyc
 .env
 
-
 # Python
 __pycache__/
 *.pyc
@@ -15,8 +14,6 @@ __pycache__/
 # Virtual environment
 venv/
 .env
-
-
 
 # Notebooks checkpoints
 .ipynb_checkpoints
