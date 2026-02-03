@@ -1,8 +1,24 @@
+# Old
 .venv/
 __pycache__/
-*.pyc
-.env
-venv/
-env/
-*.pyc
 
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environment
+venv/
+.env
+env/
+
+# Notebooks checkpoints
+.ipynb_checkpoints
+
+# OS files
+.DS_Store
+
+# Logs
+*.log
