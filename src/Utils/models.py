@@ -1,7 +1,7 @@
 # models.py
 from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.sql import func
-from database import Base
+from src.Utils.database import Base
 
 # ==========================================
 # 1. TARIFF RATES (Rules from Schedule 100, 130, etc.)

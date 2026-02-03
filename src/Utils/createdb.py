@@ -1,6 +1,6 @@
-from database import engine, Base
+from src.Utils.database import engine, Base
 # We must import models so the script knows what to build
-import models 
+import src.Utils.models as models 
 
 print("Connecting to Heroku Database...")
 
