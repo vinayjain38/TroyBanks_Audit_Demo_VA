@@ -67,6 +67,10 @@ from pathlib import Path
 from typing import List, Tuple, Optional
 import camelot
 import pandas as pd
+<<<<<<< HEAD
+
+from src.paths import RIDERS_PDF, RIDERS_DIR, RIDERS_OUT
+=======
 import sys
 
 # Add project root to sys.path
@@ -75,6 +79,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.Utils.paths import RIDERS_PDF, RIDERS_DIR, RIDERS_OUT
+>>>>>>> fbfedf65efdddc8c9bf1117205097c108e939fe7
 
 # BASE_DIR = Path(__file__).resolve().parent
 CONFIG = {
@@ -436,15 +441,24 @@ def main() -> None:
 
     # --- create human-readable string versions (keep numeric too, optional) ---
     # # If you don't want numeric columns at all in the output, remove the *_NUM lines.
+<<<<<<< HEAD
+    # riders_df[AGG_KWH_COL + "_NUM"] = pd.to_numeric(riders_df[AGG_KWH_COL], errors="coerce").fillna(0.0)
+    # riders_df[AGG_KW_COL  + "_NUM"] = pd.to_numeric(riders_df[AGG_KW_COL],  errors="coerce").fillna(0.0)
+=======
     riders_df["AGG_KWH_NUM"] = pd.to_numeric(riders_df[AGG_KWH_COL], errors="coerce").fillna(0.0)
     riders_df["AGG_KW_NUM"] = pd.to_numeric(riders_df[AGG_KW_COL],  errors="coerce").fillna(0.0)
+>>>>>>> fbfedf65efdddc8c9bf1117205097c108e939fe7
 
     # Format as $ strings (choose decimals you want)
     riders_df[AGG_KWH_COL] = riders_df[AGG_KWH_COL].map(lambda x: f"${x:.6f}")
     riders_df[AGG_KW_COL]  = riders_df[AGG_KW_COL].map(lambda x: f"${x:.6f}")
 
     # (Optional) drop numeric helper columns from export
+<<<<<<< HEAD
+    # riders_df = riders_df.drop(columns=[AGG_KWH_COL + "_NUM", AGG_KW_COL + "_NUM"])
+=======
     riders_df = riders_df.drop(columns=["AGG_KWH_NUM", "AGG_KW_NUM"])
+>>>>>>> fbfedf65efdddc8c9bf1117205097c108e939fe7
 
     # Write human-readable Excel
     riders_df.to_excel(riders_xlsx, index=False)
