@@ -1,68 +1,92 @@
 # @title New Format - Only Pg 2 - Tesseract OCR & Splitting Pattern - Success
 
-import re
-import os
-from pathlib import Path
-from dotenv import load_dotenv
-
 # --- Install dependencies ---
 # pip install pymupdf pillow pytesseract python-dotenv
 
-# --- Import libraries ---
+import re
+import os
 import io
-import fitz                 # PyMuPDF
-from PIL import Image
+import sys
+import fitz
 import pytesseract
 import pandas as pd
+from pathlib import Path
+from PIL import Image
+from dotenv import load_dotenv
 
-# --- CONFIG ---
-# Load environment variables (from parent directory)
-load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
+# --- DYNAMIC ROOT RESOLUTION ---
+# Assuming file is in src/scripts/new-bills-profile.py
+PROJECT_ROOT = Path(__file__).resolve().parents[2] 
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-# Set Tesseract path
+# Load .env from root
+load_dotenv(PROJECT_ROOT / ".env")
+
+# --- TESSERACT CONFIGURATION ---
 tesseract_path = os.getenv("TESSERACT_PATH", "").strip('"').strip()
-tessdata_prefix = os.getenv("TESSDATA_PREFIX", "").strip('"').strip()
 
-if tesseract_path:
-    # Use absolute path
-    tesseract_path = os.path.abspath(tesseract_path)
-    
-    # Get directory of tesseract executable
-    tesseract_dir = os.path.dirname(tesseract_path)
-    
-    # Add tesseract directory to PATH so subprocess can find it
-    os.environ["PATH"] = tesseract_dir + os.pathsep + os.environ.get("PATH", "")
-    
-    # Set pytesseract to use tesseract executable name (it will find it in PATH)
-    pytesseract.pytesseract.pytesseract_cmd = "tesseract.exe"
-    
-    print(f"Using Tesseract from: {tesseract_dir}")
-    
-    # Verify the file exists
-    if not os.path.exists(tesseract_path):
-        raise FileNotFoundError(f"Tesseract not found at: {tesseract_path}")
+if tesseract_path and os.path.exists(tesseract_path):
+    pytesseract.pytesseract.tesseract_cmd = tesseract_path
+    print(f"Using Tesseract from .env: {tesseract_path}")
 else:
-    raise RuntimeError("TESSERACT_PATH must be set in .env file")
+    # Fallback: Try to find 'tesseract' in the system PATH
+    import shutil
+    system_tess = shutil.which("tesseract")
+    if system_tess:
+        pytesseract.pytesseract.tesseract_cmd = system_tess
+        print(f"TESSERACT_PATH not in .env. Using system default: {system_tess}")
+    else:
+        print("CRITICAL: Tesseract not found. Please install Tesseract and update .env")
 
-if tessdata_prefix:
-    tessdata_prefix = os.path.abspath(tessdata_prefix)
-    os.environ["TESSDATA_PREFIX"] = tessdata_prefix
-    print(f"Using TESSDATA: {tessdata_prefix}")
-BASE_DIR = Path(__file__).parent.parent
-PDF_DIR = BASE_DIR / "data" / "new-bills"
+# --- PATH CONFIGURATION ---
+PDF_DIR = PROJECT_ROOT / "data" / "new-bills"
+EXCEL_OUTPUT_DIR = PROJECT_ROOT / "data" / "interim" / "new-bills-profile"
+EXCEL_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+# ... (rest of your parsing logic remains the same) ...
+
+
+# # Set Tesseract path
+# tesseract_path = os.getenv("TESSERACT_PATH", "").strip('"').strip()
+# tessdata_prefix = os.getenv("TESSDATA_PREFIX", "").strip('"').strip()
+
+# if tesseract_path:
+#     # Use absolute path
+#     tesseract_path = os.path.abspath(tesseract_path)
+    
+#     # Get directory of tesseract executable
+#     tesseract_dir = os.path.dirname(tesseract_path)
+    
+#     # Add tesseract directory to PATH so subprocess can find it
+#     os.environ["PATH"] = tesseract_dir + os.pathsep + os.environ.get("PATH", "")
+    
+#     # Set pytesseract to use tesseract executable name (it will find it in PATH)
+#     pytesseract.pytesseract.pytesseract_cmd = "tesseract.exe"
+    
+#     print(f"Using Tesseract from: {tesseract_dir}")
+    
+#     # Verify the file exists
+#     if not os.path.exists(tesseract_path):
+#         raise FileNotFoundError(f"Tesseract not found at: {tesseract_path}")
+# else:
+#     raise RuntimeError("TESSERACT_PATH must be set in .env file")
+
+# if tessdata_prefix:
+#     tessdata_prefix = os.path.abspath(tessdata_prefix)
+#     os.environ["TESSDATA_PREFIX"] = tessdata_prefix
+#     print(f"Using TESSDATA: {tessdata_prefix}")
+
+# BASE_DIR = Path(__file__).parent.parent
+# PDF_DIR = BASE_DIR / "data" / "new-bills"
 
 # Output directories
-EXCEL_OUTPUT_DIR = BASE_DIR / "data" / "interim" / "new-bills-profile"
-TEXT_OUTPUT_DIR = BASE_DIR / "test" / "new-bills-profile-txt"
-EXCEL_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-TEXT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+# EXCEL_OUTPUT_DIR = BASE_DIR / "data" / "interim" / "new-bills-profile"
+# EXCEL_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
 
 PAGE_INDEX = 1                             # 0-based index ⇒ 1 = page 2
 DPI = 400
-
-# Verify PDF directory exists
-if not PDF_DIR.exists():
-    raise FileNotFoundError(f"PDF directory not found at {PDF_DIR}")
 
 def ocr_pdf_page(pdf_path, page_index: int, dpi: int = 400) -> str:
     """Render one PDF page as image and return OCR text."""

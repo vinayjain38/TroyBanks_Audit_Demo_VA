@@ -197,8 +197,8 @@ from pathlib import Path
 import sys
 
 # Ensure project root is on PYTHONPATH so `import src...` works when running:
-# streamlit run src/streamlit.py
-ROOT = Path(__file__).resolve().parents[1]
+# streamlit run src/Web_UI/streamlit.py
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -323,6 +323,10 @@ with tab1:
         st.write(df_acct.head())
         st.stop()
 
+    if df_last12.empty:
+        st.error("⚠️ No billing data found for this account. Please check the 'data/new-bills' folder.")
+        st.stop()
+    
     # Format dates
     df_last12 = df_last12.copy()
     df_last12.loc[:, "bill_period_end"] = pd.to_datetime(df_last12["bill_period_end"]).dt.strftime("%Y-%m-%d")
@@ -467,6 +471,10 @@ with tab2:
         st.warning("This account does not have 12 months of billing data.")
         st.stop()
 
+    if df_last12.empty:
+        st.error("⚠️ No billing data found for this account. Please check the 'data/new-bills' folder.")
+        st.stop()
+    
     df_last12["bill_period_end"] = pd.to_datetime(
     df_last12["bill_period_end"], errors="coerce").dt.strftime("%Y-%m-%d")
 

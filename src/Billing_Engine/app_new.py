@@ -1,3 +1,4 @@
+"""
 # Overview:
 
 # File: app_new.py — billing engine that reads base usage + schedule/rider parameter sheets, computes per-row charges for multiple VE schedules, and writes a combined output.
@@ -40,28 +41,32 @@
 # Rider values are parsed as numeric per-kWh/per-kW via _parse_money_series in load_riders.
 # Paths and constants are imported from src.paths (e.g., SCHEDULES_XLSX, USAGE_INT, RIDERS_OUT, EXPORT_DIR) — ensure those are set correctly.
 # Writing OUTPUT_PATH after each schedule overwrites the file; consider writing once at the end if you want a single final file.
-
+"""
 
 #!/usr/bin/env python3
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
 import pandas as pd
 import numpy as np
+
+# Add project root to sys.path
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from src.Utils.paths import RIDERS_OUT, SCHEDULES_XLSX, EXPORT_DIR, USAGE_INT
 
+
 # ==== CONFIGURATION ====
-# This is va_step1_base usage file
+# This is va_step1_base usagse file
 USAGE_PATH = USAGE_INT
 
 # Directory containing riders files
 RIDERS_PATH = RIDERS_OUT
 
-# Use a timestamped filename to avoid PermissionError when a previous file is open in Excel.
-# TS = datetime.now().strftime("%Y%m%d_%H%M%S")
 OUTPUT_PATH = os.path.join(EXPORT_DIR, f"usage_savings_output.xlsx")
-
-schedule_path = SCHEDULES_XLSX
 
 # Map of schedule codes to their processing functions
 SCHEDULE_FUNCS = {}
@@ -225,8 +230,6 @@ def schedule_154(usage_df: pd.DataFrame, riders_df: pd.DataFrame) -> pd.DataFram
     # DIST_RATE = 2.673 / 100.0
     # ES_RATE   = 0.761 / 100.0
 
-    # schedule_154 = pd.read_excel(schedule_path := os.path.join(BASE_DIR, "data", "Mini_Edit_VEPGA_Schedules_Compact.xlsx"),
-                                # sheet_name="Schedule 154")
     schedule_154 = pd.read_excel(SCHEDULES_XLSX, sheet_name="Schedule 154")
 
     custrow_metered = schedule_154[
@@ -724,7 +727,6 @@ def schedule_110(usage_df: pd.DataFrame, riders_df: pd.DataFrame) -> pd.DataFram
 
     # ---------------------------------------------------------
     # 6. Determine Non-Demand vs Demand Billing
-    #xyz
     # ---------------------------------------------------------
     u = usage_df.copy()
 
@@ -852,9 +854,6 @@ def main():
 
     # 2. run each schedule
     for sid, func in SCHEDULE_FUNCS.items():
-        # out_dir = os.path.join(OUTPUT_PATH, f"ve{sid}")
-        # os.makedirs(out_dir, exist_ok=True)
-
         try:
             result = func(usage_df,riders_df)
         except Exception as e:

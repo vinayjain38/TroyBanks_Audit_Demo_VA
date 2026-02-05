@@ -1,6 +1,51 @@
 # step1_va_load_normalize.py
 # STEP 1 (Virginia): Load + normalize + export billing base table
 
+"""
+File: va_step1_base.py
+
+- Purpose: Load raw usage bill (City of VA Beach Usage History.xlsb), normalize and merge customer + billing rows, and write a clean base file (`va_step1_base_new.xlsx`) used by downstream code.
+
+- Config: `CONFIG` defines input workbook (`CUSTOMER_WORKBOOK`), sheets (`EXPORT_SHEET`, `DATA_SHEET`) and output path (`OUT_BASE`).
+
+- Main steps:
+  - Load two sheets from the XLSB (`Export` → customer metadata, Data → billing rows) using `pyxlsb`.
+  - Rename columns with `exp_map` / `dat_map` to canonical names (e.g., `Contract Account` → `contract_account`, `USAGE (kWh)` → `usage_kwh`).
+  - Clean and parse fields:
+    - `parse_yyyymmdd()` converts Excel serial dates, timestamps, or YYYYMMDD strings to pandas datetimes.
+    - `safe_to_numeric()` coerces numeric columns (`usage_kwh`, `demand_kw`, `charges`).
+  - Generate `bill_month` (period string) and compute `GAP_DAYS_FROM_PREV` — days since prior bill per account.
+  - Normalize `current_rate` into `rate_code_norm` and clean address supplement into `addr_suppl_norm`.
+  - Filter to Virginia accounts (state in `VA` / `VIRGINIA`).
+  - Merge customer metadata into billing rows on `contract_account`.
+  - Reorder to `final_cols` and write `CONFIG["OUT_BASE"]`.
+
+- Key helper functions:
+  - `norm(s)`: trim & blank-to-empty.
+  - `parse_yyyymmdd(x)`: robust date parsing (handles Excel serials, timestamps, YYYYMMDD strings).
+  - `safe_to_numeric(x)`: numeric coercion.
+
+- Output: Excel file at `CONFIG["OUT_BASE"]` containing per-row billing with columns:
+  - `contract_account`, `customer`, `current_rate`, `rate_code_norm`, address fields, `bill_month`, `bill_period_end`, `GAP_DAYS_FROM_PREV`, `usage_kwh`, `demand_kw`, `charges`.
+
+- Assumptions & caveats:
+  - Input workbook must be an XLSB readable by `pyxlsb`.
+  - Column names in the XLSB must match mappings in `exp_map` / `dat_map`; otherwise add mappings.
+  - Date parsing expects sensible serials or recognizable strings; unusual formats may parse to NaT and be dropped downstream.
+  - Filtering to VA is intentional; remove that filter if you want nationwide rows.
+
+  
+- Suggestions:  
+  - Add logging instead of prints for better diagnostics.  
+  - Optionally write a CSV alongside XLSX for faster downstream reads.  
+  - Add small unit tests for `parse_yyyymmdd()` with representative inputs.
+
+Want me to add CSV export, logging, or a brief sample test for the date parser?
+"""
+
+
+
+
 import os
 import sys
 import numpy as np
