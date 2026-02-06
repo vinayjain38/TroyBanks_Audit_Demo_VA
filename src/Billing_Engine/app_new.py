@@ -288,7 +288,7 @@ def schedule_154(usage_df: pd.DataFrame, riders_df: pd.DataFrame) -> pd.DataFram
     return df[["ve154_calculated_amount", "ve154_savings", "ve154_case_type",
                "ve154_cust_charge", "ve154_dist_rate", "ve154_es_rate", "ve154_rider_charge"]]
 
-def schedule_102(usage_df: pd.DataFrame, riders_df: str = None) -> pd.DataFrame:
+def schedule_102(usage_df: pd.DataFrame, riders_df: pd.DataFrame) -> pd.DataFrame:
     # load latest riders file
     r102 = riders_df[riders_df["schedule_code"].str.contains("SCHEDULE 102")]
     if r102.empty:
@@ -386,7 +386,7 @@ def schedule_102(usage_df: pd.DataFrame, riders_df: str = None) -> pd.DataFrame:
     return df[['ve102_calculated_amount','ve102_savings','ve102_case_type',
                've102_cust_charge','ve102_dist_rate','ve102_es_rate','ve102_rider_charge']]
 
-def schedule_100(usage_df: pd.DataFrame, riders_df: str = None) -> pd.DataFrame:
+def schedule_100(usage_df: pd.DataFrame, riders_df: pd.DataFrame) -> pd.DataFrame:
     # load riders row for SCHEDULE 100
     r100 = riders_df[riders_df["schedule_code"].str.contains("SCHEDULE 100", case=False, na=False)]
     if r100.empty:
@@ -839,13 +839,13 @@ SCHEDULE_FUNCS = {
 def main():
     # 1. load base once
     try:
-        usage_df = load_usage(USAGE_PATH)
+        usage_df = load_usage(str(USAGE_PATH))
     except Exception as e:
         print(f"ERROR loading usage: {e}", file=sys.stderr)
         sys.exit(1)
     
     try:
-        riders_df = load_riders(RIDERS_PATH)
+        riders_df = load_riders(str(RIDERS_PATH))
     except Exception as e:
         print(f"ERROR loading riders: {e}", file=sys.stderr)
         sys.exit(1)

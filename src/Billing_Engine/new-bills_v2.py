@@ -33,7 +33,7 @@ except ImportError:
 
 # Load environment variables from .env file when available
 env_path = PROJECT_ROOT / ".env"
-if env_path.exists():
+if env_path.exists() and load_dotenv is not None:
     load_dotenv(env_path)
 
 
@@ -122,8 +122,8 @@ def is_value_token(text: str) -> bool:
 def extract_usage_table_by_coords(pdf_path: str,
                                   page_index: int,
                                   dpi: int = 300,
-                                  prev_month_centers: dict = None,
-                                  prev_year: str = None) -> tuple:
+                                  prev_month_centers: dict | None = None,
+                                  prev_year: str | None = None) -> tuple:
     """
     Extract one 'Historical Electricity Usage - YYYY' table from a page,
     using x-coordinates to map values to month columns.
@@ -182,6 +182,9 @@ def extract_usage_table_by_coords(pdf_path: str,
                     if row["conf"] > data[data["text"].str.upper() == txt_upper]["conf"].mean():
                         month_centers[txt_upper] = row["cx"]
 
+    header_cy = 0  # Initialize header_cy early to avoid unbound variable errors
+    has_own_headers = True  # Default assumption
+
     if not month_centers:
         # If no month headers found on this page, try to use previous page's month centers
         # This handles multi-page tables where continuation pages don't have headers
@@ -206,7 +209,7 @@ def extract_usage_table_by_coords(pdf_path: str,
     if best_month_line and has_own_headers:
         header_y_line_id, grp = best_month_line
         header_cy = grp["cy"].mean()
-    elif has_own_headers and not 'header_cy' in locals():
+    elif has_own_headers:
         # If header_cy wasn't set above (e.g., found months but not best_month_line)
         header_cy = data["cy"].min() if len(data) > 0 else 0
 
@@ -446,7 +449,7 @@ def pivot_usage_table(usage_df: pd.DataFrame) -> pd.DataFrame:
         index=["Year", "Month"],
         columns="Label",
         values="Value",
-        aggfunc="first",
+        aggfunc=lambda x: x.iloc[0],
     ).reset_index()
     pivoted.columns.name = None
     # Sort by Year, then by month order (JAN … DEC)
@@ -465,14 +468,14 @@ else:
     print(f"Found {len(pdf_files)} PDF file(s) in {pdf_folder}")
     
     for pdf_path in pdf_files:
+        # Extract filename without extension
+        filename = os.path.splitext(os.path.basename(pdf_path))[0]
         try:
-            # Extract filename without extension
-            filename = os.path.splitext(os.path.basename(pdf_path))[0]
             
             print(f"Processing: {filename}.pdf")
             
             # Extract data
-            usage_df = extract_all_usage_tables(pdf_path, dpi=DPI)
+            usage_df = extract_all_usage_tables(str(pdf_path), dpi=DPI)
             
             if not usage_df.empty:
                 # Filter out excluded labels (after parsing, before writing to excel)
