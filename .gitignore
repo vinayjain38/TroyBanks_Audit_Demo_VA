@@ -1,7 +1,3 @@
-# Old
-.venv/
-__pycache__/
-
 # Python
 __pycache__/
 *.pyc
@@ -11,8 +7,8 @@ __pycache__/
 
 # Virtual environment
 venv/
+virtenv/
 .env
-env/
 
 # Notebooks checkpoints
 .ipynb_checkpoints
