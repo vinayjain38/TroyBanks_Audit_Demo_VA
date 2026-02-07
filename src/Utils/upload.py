@@ -8,6 +8,8 @@ from sqlalchemy import text
 # This tells Python: "When you see '* Subtotal' in Excel, put it in 'subtotal_raw' in DB"
 
 USAGE_MAPPING = {
+    "Year": "year",
+    "Month": "month",
     "* Subtotal": "subtotal_raw",
     "** Total Charges": "total_charges_raw",
     "Bill From": "bill_from_raw",
@@ -16,6 +18,11 @@ USAGE_MAPPING = {
     "Billed Rate": "billed_rate",
     "Bill Summary": "bill_summary",
     "Demand": "demand",
+    "Demand Charges": "demand_charges",
+    "Demand ESS": "demand_ess",
+    "Distribution Demand": "distribution_demand",
+    "Distribution Demand Sec.": "distribution_demand_sec",
+    "RKVA": "rkva",
     "Total Consumption": "total_consumption",
     "Historical Electricity Usage": "historical_usage",
     "Energy Charges": "energy_charges",
@@ -30,34 +37,58 @@ USAGE_MAPPING = {
     "On Peak Energy ESS": "on_peak_energy_ess",
     "On Peak Usage": "on_peak_usage",
     "Virginia Tax Surcharge": "tax_surcharge",
+    "Transmission Demand": "transmission_demand",
     "Transmission Energy": "transmission_energy",
     "Other Charges/Credits": "other_charges_credits",
+    "kW Adj ESS Secondary": "kw_adj_ess_secondary",
+    "W": "w_misc",
+    "�": "unknown_symbol",
     "PITTSYLVANIA CNTY SRVC AUTH |": "service_auth_name",
     # Riders
+    "Rider B kW": "rider_b_kw",
     "Rider B kWh": "rider_b_kwh",
+    "Rider BW kW": "rider_bw_kw",
     "Rider BW kWh": "rider_bw_kwh",
     "Rider CCR": "rider_ccr",
+    "Rider CE kw": "rider_ce_kw",
     "Rider CE kWh": "rider_ce_kwh",
     "Rider DIST kWh": "rider_dist_kwh",
+    "Rider E kW": "rider_e_kw",
     "Rider E kWh": "rider_e_kwh",
     "Rider GEN kWh": "rider_gen_kwh",
+    "Rider GT KW": "rider_gt_kw",
+    "Rider GV kW": "rider_gv_kw",
     "Rider GV kWh": "rider_gv_kwh",
+    "Rider OSW KW": "rider_osw_kw",
     "Rider OSW KWh": "rider_osw_kwh",
     "Rider PIPP": "rider_pipp",
     "Rider PPA": "rider_ppa",
+    "Rider R kW": "rider_r_kw",
     "Rider R kWh": "rider_r_kwh",
+    "Rider R kw": "rider_r_kw_alt",
+    "Rider RBB kW": "rider_rbb_kw",
     "Rider RBB kWh": "rider_rbb_kwh",
     "Rider RGGI": "rider_rggi",
     "Rider RPS": "rider_rps",
+    "Rider S kW": "rider_s_kw",
     "Rider S kWh": "rider_s_kwh",
     "Rider SMR KWh": "rider_smr_kwh",
+    "Rider SNA KW": "rider_sna_kw",
     "Rider SNA KWh": "rider_sna_kwh",
+    "Rider U1 kW": "rider_u1_kw",
     "Rider U1 kWh": "rider_u1_kwh",
+    "Rider U2 kW": "rider_u2_kw",
     "Rider U2 kWh": "rider_u2_kwh",
+    "Rider U2 kw": "rider_u2_kw_alt",
+    "Rider US-2 kW": "rider_us2_kw",
     "Rider US-2 kWh": "rider_us2_kwh",
+    "Rider US-3 kW": "rider_us3_kw",
     "Rider US-3 kWh": "rider_us3_kwh",
+    "Rider US-4 kw": "rider_us4_kw",
     "Rider US-4 kWh": "rider_us4_kwh",
+    "Rider W kW": "rider_w_kw",
     "Rider W kWh": "rider_w_kwh",
+    "Rider W kw": "rider_w_kw_alt",
     "Ridr GT": "rider_gt"
 }
 
@@ -93,18 +124,27 @@ RIDER_MAPPING = {
 def upload_usage_data(file_path):
     print(f"Reading Usage Data from {file_path}...")
     # Read Excel, force everything to String (dtype=str) to avoid date/float errors
-    df = pd.read_excel(file_path, dtype=str)
+    try:
+        df = pd.read_excel(file_path, sheet_name="pivoted", dtype=str)
+    except ValueError:
+        df = pd.read_excel(file_path, dtype=str)
+
+    unmapped = sorted(set(df.columns) - set(USAGE_MAPPING.keys()))
+    if unmapped:
+        print("Unmapped columns (not uploaded):")
+        for col in unmapped:
+            print(f"  - {col}")
     
     # Rename columns using the dictionary above
     df = df.rename(columns=USAGE_MAPPING)
     
     # Keep only the columns that match our Database Table (ignore extra junk in Excel)
-    valid_columns = [col for col in df.columns if col in USAGE_MAPPING.values() or col in ['year', 'month']]
+    valid_columns = [col for col in df.columns if col in USAGE_MAPPING.values()]
     df = df[valid_columns]
     
-    print(f"Uploading {len(df)} rows to 'usage_records'...")
+    print(f"Uploading {len(df)} rows to 'usage_bill'...")
     # if_exists='append' adds to existing data. Use 'replace' to wipe and start over.
-    df.to_sql('usage_records', con=engine, if_exists='append', index=False)
+    df.to_sql('usage_bill', con=engine, if_exists='append', index=False)
     print("Done!")
 
 def upload_tariff_data(file_path, schedule_code):
