@@ -15,6 +15,7 @@ SCHEDULES_XLSX = RAW_DIR / "Mini_Edit_VEPGA_Schedules_Compact.xlsx"
 
 NEW_BILLS_DIR = RAW_DIR / "new-bills"
 NEW_BILLS_PARSED_DIR = INTERIM_DIR / "new-bills-parsed"
+NEW_BILLS_PROFILE_DIR = INTERIM_DIR / "new-bills-profile"
 
 RIDERS_PDF = RAW_DIR / "VEPGA-Amendment-12-Effective-July-1-2025.pdf"
 RIDERS_DIR = INTERIM_DIR / "rider_tables_new"

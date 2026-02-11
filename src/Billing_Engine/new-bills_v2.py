@@ -14,16 +14,16 @@ import pytesseract
 from pytesseract import Output
 
 # Adjust .parents[x] based on how deep this file is stored
-PROJECT_ROOT = Path(__file__).resolve().parents[2] 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-pdf_folder = PROJECT_ROOT / "data" / "new-bills"
-# Ensure the folder exists to avoid crashes
+from src.Utils.paths import NEW_BILLS_DIR, NEW_BILLS_PARSED_DIR
+
+pdf_folder = NEW_BILLS_DIR
 pdf_folder.mkdir(parents=True, exist_ok=True)
 
-output_folder = PROJECT_ROOT / "data" / "interim" / "new-bills-parsed"
-# Ensure the folder exists to avoid crashes
+output_folder = NEW_BILLS_PARSED_DIR
 output_folder.mkdir(parents=True, exist_ok=True)
 
 try:
@@ -473,6 +473,13 @@ else:
         try:
             
             print(f"Processing: {filename}.pdf")
+
+            output_excel = output_folder / f"{filename}_extracted.xlsx"
+            output_pivoted = output_folder / f"{filename}_pivoted.xlsx"
+            if output_excel.exists() and output_pivoted.exists():
+                print(f"Skipping: outputs already exist for {filename}.pdf")
+                print()
+                continue
             
             # Extract data
             usage_df = extract_all_usage_tables(str(pdf_path), dpi=DPI)
@@ -491,7 +498,6 @@ else:
                 # usage_df["Label"] = usage_df["Label"].replace(LABEL_ALIASES)
                 
                 # Write main extracted table
-                output_excel = output_folder / f"{filename}_extracted.xlsx"
                 usage_df.to_excel(output_excel, index=False)
                 print(f"Saved: {os.path.abspath(output_excel)}")
                 print(f"Rows: {len(usage_df)}, Years: {usage_df['Year'].unique()}")
@@ -499,7 +505,6 @@ else:
                 # Pivot table and write second Excel (after existing file is written)
                 pivoted_df = pivot_usage_table(usage_df)
                 if not pivoted_df.empty:
-                    output_pivoted = output_folder / f"{filename}_pivoted.xlsx"
                     pivoted_df.to_excel(output_pivoted, index=False)
                     print(f"Saved pivoted: {os.path.abspath(output_pivoted)}")
             else:
