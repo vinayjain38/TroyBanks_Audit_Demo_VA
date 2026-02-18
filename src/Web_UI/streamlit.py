@@ -206,6 +206,7 @@ if str(ROOT) not in sys.path:
 import streamlit as st
 import pandas as pd
 import re
+from typing import List
 
 from src.Billing_Engine.app_new import (
     load_usage, load_riders,
@@ -213,7 +214,8 @@ from src.Billing_Engine.app_new import (
     schedule_120, schedule_154,
     SCHEDULE_FUNCS)
 #    USAGE_PATH, RIDERS_PATH
-from src.Utils.paths import USAGE_INT, RIDERS_OUT
+from src.Utils.paths import USAGE_INT, RIDERS_OUT, NEW_BILLS_DIR
+from src.Billing_Engine.run_new_bills_pipeline import run_pipeline
 
 
 # ---------------------------------------------------
@@ -262,6 +264,38 @@ usage_df, riders_df = load_all()
 # FILTER SECTION – Side-by-side layout
 # ---------------------------------------------------
 st.title("Tariff Schedule Comparison – 12 Month View")
+
+# ---------------------------------------------------
+# Upload & Process New Bills PDFs
+# ---------------------------------------------------
+st.subheader("Upload New Bills (PDF)")
+uploaded_pdfs = st.file_uploader(
+    "Upload one or more PDF bills",
+    type=["pdf"],
+    accept_multiple_files=True
+)
+
+if uploaded_pdfs:
+    NEW_BILLS_DIR.mkdir(parents=True, exist_ok=True)
+    saved_paths: List[Path] = []
+
+    for pdf in uploaded_pdfs:
+        save_path = NEW_BILLS_DIR / pdf.name
+        with open(save_path, "wb") as f:
+            f.write(pdf.getbuffer())
+        saved_paths.append(save_path)
+
+    st.success(f"Saved {len(saved_paths)} file(s) to {NEW_BILLS_DIR}")
+
+    if st.button("Process Uploaded PDFs", type="primary"):
+        with st.spinner("Processing PDFs, extracting data, and updating the database..."):
+            try:
+                run_pipeline(write_to_db=True, pdf_paths=saved_paths)
+                st.cache_data.clear()
+                st.success("Pipeline completed and database updated.")
+                st.experimental_rerun()
+            except Exception as e:
+                st.error(f"Pipeline failed: {e}")
 
 col1, col2 = st.columns([2, 1])
 

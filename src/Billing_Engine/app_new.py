@@ -56,17 +56,15 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.Utils.paths import RIDERS_OUT, SCHEDULES_XLSX, EXPORT_DIR, USAGE_INT
-
+from src.Utils.paths import RIDERS_OUT, SCHEDULES_XLSX, EXPORT_DIR, USAGE_INT, INTERIM_DIR
+import glob
 
 # ==== CONFIGURATION ====
-# This is va_step1_base usagse file
-USAGE_PATH = USAGE_INT
+# Directory containing pivoted input files
+PIVOTED_DIR = os.path.join(INTERIM_DIR, "new-bills-parsed")
 
 # Directory containing riders files
 RIDERS_PATH = RIDERS_OUT
-
-OUTPUT_PATH = os.path.join(EXPORT_DIR, f"usage_savings_output.xlsx")
 
 # Map of schedule codes to their processing functions
 SCHEDULE_FUNCS = {}
@@ -75,10 +73,51 @@ SCHEDULE_FUNCS = {}
 def load_usage(path: str) -> pd.DataFrame:
     """Load your base usage DataFrame and normalize it."""
     df = pd.read_excel(path)
-    df["usage_kwh"] = df["usage_kwh"]  # ensure exists
-    df["charges"]    = df["charges"]    # ensure exists
-    df["current_rate"] = df["current_rate"]  # ensure exists
-    df['demand_kw'] = df['demand_kw'] # ensure exists
+    
+    # Check if this is a pivoted file format (from new-bills-parsed)
+    if 'Total Consumption' in df.columns:
+        # Map pivoted file columns to expected columns
+        df = df.rename(columns={
+            'Total Consumption': 'usage_kwh',
+            '** Total Charges': 'charges',
+            'Billed Rate': 'current_rate',
+            'Bill To': 'bill_period_end',
+            'Demand': 'demand_kw'
+        })
+        
+        # Clean the charges column - remove $ and convert to float
+        if df['charges'].dtype == 'object':
+            df['charges'] = df['charges'].astype(str).str.replace('$', '').str.replace(',', '')
+            df['charges'] = pd.to_numeric(df['charges'], errors='coerce')
+        
+        # Convert bill_period_end to datetime
+        if 'bill_period_end' in df.columns:
+            df['bill_period_end'] = pd.to_datetime(df['bill_period_end'], errors='coerce')
+        
+        # Ensure demand_kw is numeric and fill NaN with 0
+        if 'demand_kw' in df.columns:
+            df['demand_kw'] = pd.to_numeric(df['demand_kw'], errors='coerce').fillna(0.0)
+        else:
+            df['demand_kw'] = 0.0
+        
+        # Extract account number from filename (e.g., Profile6020_pivoted.xlsx -> 6020)
+        if 'contract_account' not in df.columns:
+            import re
+            filename = os.path.basename(path)
+            match = re.search(r'Profile(\d+)', filename)
+            if match:
+                account_num = match.group(1)
+                df['contract_account'] = account_num
+            else:
+                # If no profile number found, use filename without extension
+                df['contract_account'] = os.path.splitext(filename)[0]
+    else:
+        # Original format - ensure columns exist
+        df["usage_kwh"] = df["usage_kwh"]
+        df["charges"]    = df["charges"]
+        df["current_rate"] = df["current_rate"]
+        df['demand_kw'] = df['demand_kw']
+    
     return df
 
 def _parse_money_series(s: pd.Series) -> pd.Series:
@@ -288,7 +327,7 @@ def schedule_154(usage_df: pd.DataFrame, riders_df: pd.DataFrame) -> pd.DataFram
     return df[["ve154_calculated_amount", "ve154_savings", "ve154_case_type",
                "ve154_cust_charge", "ve154_dist_rate", "ve154_es_rate", "ve154_rider_charge"]]
 
-def schedule_102(usage_df: pd.DataFrame, riders_df: pd.DataFrame) -> pd.DataFrame:
+def schedule_102(usage_df: pd.DataFrame, riders_df: str = None) -> pd.DataFrame:
     # load latest riders file
     r102 = riders_df[riders_df["schedule_code"].str.contains("SCHEDULE 102")]
     if r102.empty:
@@ -386,7 +425,7 @@ def schedule_102(usage_df: pd.DataFrame, riders_df: pd.DataFrame) -> pd.DataFram
     return df[['ve102_calculated_amount','ve102_savings','ve102_case_type',
                've102_cust_charge','ve102_dist_rate','ve102_es_rate','ve102_rider_charge']]
 
-def schedule_100(usage_df: pd.DataFrame, riders_df: pd.DataFrame) -> pd.DataFrame:
+def schedule_100(usage_df: pd.DataFrame, riders_df: str = None) -> pd.DataFrame:
     # load riders row for SCHEDULE 100
     r100 = riders_df[riders_df["schedule_code"].str.contains("SCHEDULE 100", case=False, na=False)]
     if r100.empty:
@@ -592,12 +631,14 @@ def schedule_100(usage_df: pd.DataFrame, riders_df: pd.DataFrame) -> pd.DataFram
     #     df.get("demand_kw", 0) * rate_rider_kw  ### Riders charge include demand component
     # )
     
-    # For Non-Demand Billing, the rate_rider_kw component must not apply  
-    df["ve100_rider_charge"] = df.apply(
-    lambda row: (
-        row["usage_kwh"] * rate_rider_kwh +
-        (row["demand_kw"] * rate_rider_kw if not row["is_nondemand"] else 0)
-    ),axis=1)
+    # For Non-Demand Billing, the rate_rider_kw component must not apply
+    # Calculate kWh and kW components separately for visibility
+    df["ve100_rider_kwh"] = df["usage_kwh"] * rate_rider_kwh
+    df["ve100_rider_kw"] = df.apply(
+        lambda row: row["demand_kw"] * rate_rider_kw if not row["is_nondemand"] else 0,
+        axis=1
+    )
+    df["ve100_rider_charge"] = df["ve100_rider_kwh"] + df["ve100_rider_kw"]
 
     df["ve100_calculated_amount"] = (
         df["ve100_cust_charge"] +
@@ -616,9 +657,10 @@ def schedule_100(usage_df: pd.DataFrame, riders_df: pd.DataFrame) -> pd.DataFram
     # print("ES  :", df["ve100_es_charge"].head())
     # print("Rider:", df["ve100_rider_charge"].head())
 
-    # expose rider per-kwh rate so UI can display it
+    # expose rider components so UI can display both kWh and kW separately
     return df[['ve100_calculated_amount', 've100_savings', 've100_case_type',
-               've100_cust_charge', 've100_dist_rate', 've100_es_charge', 've100_rider_charge']]
+               've100_cust_charge', 've100_dist_rate', 've100_es_charge', 
+               've100_rider_charge', 've100_rider_kwh', 've100_rider_kw']]
 
 
 def schedule_110(usage_df: pd.DataFrame, riders_df: pd.DataFrame) -> pd.DataFrame:
@@ -800,13 +842,13 @@ def schedule_110(usage_df: pd.DataFrame, riders_df: pd.DataFrame) -> pd.DataFram
     )
     df["ve110_dist_charge"] = df["ve110_dist_rate"] * df["usage_kwh"]
 
-    df["ve110_rider_charge"] = df.apply(
-        lambda row: (
-            row["usage_kwh"] * rate_rider_kwh +
-            (row["demand_kw"] * rate_rider_kw if not row["is_nondemand"] else 0)
-        ),
+    # Calculate kWh and kW components separately for visibility
+    df["ve110_rider_kwh"] = df["usage_kwh"] * rate_rider_kwh
+    df["ve110_rider_kw"] = df.apply(
+        lambda row: row["demand_kw"] * rate_rider_kw if not row["is_nondemand"] else 0,
         axis=1
     )
+    df["ve110_rider_charge"] = df["ve110_rider_kwh"] + df["ve110_rider_kw"]
 
     df["ve110_calculated_amount"] = (
         df["ve110_cust_charge"] +
@@ -820,11 +862,12 @@ def schedule_110(usage_df: pd.DataFrame, riders_df: pd.DataFrame) -> pd.DataFram
         lambda x: 'Same Schedule as Current' if x == 'VE-110' else 'New Rate Schedule'
     )
 
-    # expose rider per-kwh rate for UI
+    # expose rider components so UI can display both kWh and kW separately
     # df.to_excel(os.path.join(BASE_DIR, "ve110_debug_output.xlsx"), index=False)
     
     return df[["ve110_calculated_amount", "ve110_savings", "ve110_case_type",
-               "ve110_cust_charge", "ve110_dist_rate", "ve110_es_charge", "ve110_rider_charge"]]
+               "ve110_cust_charge", "ve110_dist_rate", "ve110_es_charge", 
+               "ve110_rider_charge", "ve110_rider_kwh", "ve110_rider_kw"]]
 
 # register it
 SCHEDULE_FUNCS = {
@@ -836,40 +879,77 @@ SCHEDULE_FUNCS = {
 }
 
 # ==== MAIN ====
-def main():
-    # 1. load base once
+def _write_output_to_db(df: pd.DataFrame, source_file: str, table_name: str = "billing_outputs") -> None:
     try:
-        usage_df = load_usage(str(USAGE_PATH))
+        from src.Utils.database import engine
     except Exception as e:
-        print(f"ERROR loading usage: {e}", file=sys.stderr)
-        sys.exit(1)
-    
+        print(f"ERROR: Database engine not available: {e}", file=sys.stderr)
+        return
+
+    out = df.copy()
+    out["source_file"] = source_file
+    out["processed_at"] = datetime.utcnow()
+
     try:
-        riders_df = load_riders(str(RIDERS_PATH))
+        out.to_sql(table_name, con=engine, if_exists="append", index=False)
+        print(f"  Saved to DB table: {table_name}")
+    except Exception as e:
+        print(f"  ERROR writing to DB table {table_name}: {e}", file=sys.stderr)
+
+
+def main(write_to_db: bool = True, output_table: str = "billing_outputs"):
+    # 1. Load riders once (shared across all files)
+    try:
+        riders_df = load_riders(RIDERS_PATH)
     except Exception as e:
         print(f"ERROR loading riders: {e}", file=sys.stderr)
         sys.exit(1)
     
-    combined = usage_df.copy()
-
-    # 2. run each schedule
-    for sid, func in SCHEDULE_FUNCS.items():
+    # 2. Find all pivoted files
+    pivoted_pattern = os.path.join(PIVOTED_DIR, "*_pivoted.xlsx")
+    pivoted_files = glob.glob(pivoted_pattern)
+    
+    if not pivoted_files:
+        print(f"ERROR: No pivoted files found in {PIVOTED_DIR}", file=sys.stderr)
+        sys.exit(1)
+    
+    print(f"Found {len(pivoted_files)} pivoted file(s) to process")
+    
+    # 3. Process each pivoted file
+    for input_path in pivoted_files:
+        filename = os.path.basename(input_path)
+        print(f"\nProcessing: {filename}")
+        
+        # Load usage data from pivoted file
         try:
-            result = func(usage_df,riders_df)
+            usage_df = load_usage(input_path)
         except Exception as e:
-            print(f"SKIP {sid}: {e}", file=sys.stderr)
+            print(f"  ERROR loading {filename}: {e}", file=sys.stderr)
             continue
         
-        combined = pd.concat([combined, result], axis=1)
+        combined = usage_df.copy()
+        
+        # 4. Run each schedule for this file
+        for sid, func in SCHEDULE_FUNCS.items():
+            try:
+                result = func(usage_df, riders_df)
+            except Exception as e:
+                print(f"  SKIP schedule {sid}: {e}", file=sys.stderr)
+                continue
+            
+            combined = pd.concat([combined, result], axis=1)
+            print(f"  Schedule {sid} done")
+        
+        # 5. Write output with same filename to export directory
+        output_path = os.path.join(EXPORT_DIR, filename)
+        combined.to_excel(output_path, index=False)
+        print(f"  Saved: {output_path}")
 
-        # 3. write timestamped Excel
-        # ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        # fname = f"ve{sid}_results_{ts}.xlsx"
-        # path = os.path.join(out_dir, fname)
-        combined.to_excel(OUTPUT_PATH, index=False)
-        print(f"Schedule {sid} done")
-
-    print("All schedules completed.")
+        # 6. Write output to database (optional)
+        if write_to_db:
+            _write_output_to_db(combined, source_file=filename, table_name=output_table)
+    
+    print("\nAll files processed successfully!")
 
 if __name__ == "__main__":
     main()
