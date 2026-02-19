@@ -75,10 +75,6 @@ SCHEDULE_FUNCS = {}
 def load_usage(path: str) -> pd.DataFrame:
     """Load your base usage DataFrame and normalize it."""
     df = pd.read_excel(path)
-    df["usage_kwh"] = df["usage_kwh"]  # ensure exists
-    df["charges"]    = df["charges"]    # ensure exists
-    df["current_rate"] = df["current_rate"]  # ensure exists
-    df['demand_kw'] = df['demand_kw'] # ensure exists
     return df
 
 def _parse_money_series(s: pd.Series) -> pd.Series:
