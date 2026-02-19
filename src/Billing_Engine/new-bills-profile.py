@@ -16,9 +16,11 @@ from dotenv import load_dotenv
 
 # --- DYNAMIC ROOT RESOLUTION ---
 # Assuming file is in src/scripts/new-bills-profile.py
-PROJECT_ROOT = Path(__file__).resolve().parents[2] 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.Utils.paths import NEW_BILLS_DIR, NEW_BILLS_PROFILE_DIR
 
 # Load .env from root
 load_dotenv(PROJECT_ROOT / ".env")
@@ -40,8 +42,8 @@ else:
         print("CRITICAL: Tesseract not found. Please install Tesseract and update .env")
 
 # --- PATH CONFIGURATION ---
-PDF_DIR = PROJECT_ROOT / "data" / "new-bills"
-EXCEL_OUTPUT_DIR = PROJECT_ROOT / "data" / "interim" / "new-bills-profile"
+PDF_DIR = NEW_BILLS_DIR
+EXCEL_OUTPUT_DIR = NEW_BILLS_PROFILE_DIR
 EXCEL_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # ... (rest of your parsing logic remains the same) ...
@@ -365,6 +367,9 @@ for pdf_path in pdf_files:
     
     # Generate dynamic output paths based on PDF name
     OUTPUT_EXCEL = EXCEL_OUTPUT_DIR / f"{pdf_name}_page2_parsed.xlsx"
+    # if OUTPUT_EXCEL.exists():
+    #     print(f"  Skipping: output already exists at {OUTPUT_EXCEL}")
+    #     continue
     
     # Extract OCR text
     ocr_text = ocr_pdf_page(pdf_path, PAGE_INDEX, DPI).strip()
