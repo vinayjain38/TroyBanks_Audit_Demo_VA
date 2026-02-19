@@ -4,7 +4,6 @@
 
 import io, os, re
 import sys
-from typing import Optional
 import fitz
 import pandas as pd
 from PIL import Image
@@ -34,52 +33,18 @@ except ImportError:
 
 # Load environment variables from .env file when available
 env_path = PROJECT_ROOT / ".env"
-if env_path.exists():
+if env_path.exists() and load_dotenv is not None:
     load_dotenv(env_path)
 
 
 # Add Tesseract to PATH from environment variables
-tesseract_path = os.getenv("TESSERACT_PATH")
-tessdata_prefix = os.getenv("TESSDATA_PREFIX")
+tesseract_path = os.getenv('TESSERACT_PATH')
+tessdata_prefix = os.getenv('TESSDATA_PREFIX')
 
 if tesseract_path:
-    if Path(tesseract_path).is_file():
-        pytesseract.pytesseract.tesseract_cmd = tesseract_path
-    else:
-        os.environ["PATH"] = tesseract_path + os.pathsep + os.environ.get("PATH", "")
-
-def _find_tessdata_dir(explicit_prefix: Optional[str]) -> Optional[Path]:
-    candidates: list = []
-
-    if explicit_prefix:
-        p = Path(explicit_prefix)
-        candidates.append(p)
-        if p.name != "tessdata":
-            candidates.append(p / "tessdata")
-
-    candidates.extend(
-        [
-            Path(sys.prefix) / "share" / "tessdata",
-            Path("/opt/anaconda3/share/tessdata"),
-            Path("/opt/homebrew/share/tessdata"),
-            Path("/usr/local/share/tessdata"),
-            Path("/usr/share/tessdata"),
-            Path("/usr/share/tesseract-ocr/tessdata"),
-            Path("/usr/share/tesseract-ocr/5/tessdata"),
-            Path("/usr/share/tesseract-ocr/4.00/tessdata"),
-        ]
-    )
-
-    for c in candidates:
-        if c.is_dir() and (c / "eng.traineddata").exists():
-            return c
-    return None
-
-TESSDATA_DIR = _find_tessdata_dir(tessdata_prefix)
-if TESSDATA_DIR:
-    os.environ["TESSDATA_PREFIX"] = str(TESSDATA_DIR)
-
-TESSERACT_CONFIG = f'--tessdata-dir "{TESSDATA_DIR}"' if TESSDATA_DIR else ""
+    os.environ['PATH'] = tesseract_path + os.pathsep + os.environ.get('PATH', '')
+if tessdata_prefix:
+    os.environ['TESSDATA_PREFIX'] = tessdata_prefix
 
 # PDF_PATH = "../data/new-bills/Profile0412.pdf"
 DPI = 400 
@@ -157,8 +122,8 @@ def is_value_token(text: str) -> bool:
 def extract_usage_table_by_coords(pdf_path: str,
                                   page_index: int,
                                   dpi: int = 300,
-                                  prev_month_centers: dict = None,
-                                  prev_year: str = None) -> tuple:
+                                  prev_month_centers: dict | None = None,
+                                  prev_year: str | None = None) -> tuple:
     """
     Extract one 'Historical Electricity Usage - YYYY' table from a page,
     using x-coordinates to map values to month columns.
@@ -167,7 +132,7 @@ def extract_usage_table_by_coords(pdf_path: str,
              and the year. This allows the next page to inherit month centers if needed.
     """
     img = render_page_to_image(pdf_path, page_index, dpi)
-    data = pytesseract.image_to_data(img, output_type=Output.DATAFRAME, config=TESSERACT_CONFIG)
+    data = pytesseract.image_to_data(img, output_type=Output.DATAFRAME)
 
     # basic clean-up
     data = data[(data.conf.astype(float) > 0) & data.text.notna()]
@@ -217,6 +182,9 @@ def extract_usage_table_by_coords(pdf_path: str,
                     if row["conf"] > data[data["text"].str.upper() == txt_upper]["conf"].mean():
                         month_centers[txt_upper] = row["cx"]
 
+    header_cy = 0  # Initialize header_cy early to avoid unbound variable errors
+    has_own_headers = True  # Default assumption
+
     if not month_centers:
         # If no month headers found on this page, try to use previous page's month centers
         # This handles multi-page tables where continuation pages don't have headers
@@ -241,7 +209,7 @@ def extract_usage_table_by_coords(pdf_path: str,
     if best_month_line and has_own_headers:
         header_y_line_id, grp = best_month_line
         header_cy = grp["cy"].mean()
-    elif has_own_headers and not 'header_cy' in locals():
+    elif has_own_headers:
         # If header_cy wasn't set above (e.g., found months but not best_month_line)
         header_cy = data["cy"].min() if len(data) > 0 else 0
 
@@ -481,7 +449,7 @@ def pivot_usage_table(usage_df: pd.DataFrame) -> pd.DataFrame:
         index=["Year", "Month"],
         columns="Label",
         values="Value",
-        aggfunc="first",
+        aggfunc=lambda x: x.iloc[0],
     ).reset_index()
     pivoted.columns.name = None
     # Sort by Year, then by month order (JAN … DEC)
@@ -492,86 +460,58 @@ def pivot_usage_table(usage_df: pd.DataFrame) -> pd.DataFrame:
 
 
 
-def process_pdf(pdf_path: Path) -> dict:
-    result = {
-        "pdf": pdf_path,
-        "extracted": None,
-        "pivoted": None,
-        "rows": 0,
-        "years": [],
-        "error": None,
-    }
+pdf_files = list(pdf_folder.glob("*.pdf"))
 
-    try:
+if not pdf_files:
+    print(f"No PDF files found in {pdf_folder}")
+else:
+    print(f"Found {len(pdf_files)} PDF file(s) in {pdf_folder}")
+    
+    for pdf_path in pdf_files:
         # Extract filename without extension
         filename = os.path.splitext(os.path.basename(pdf_path))[0]
+        try:
+            
+            print(f"Processing: {filename}.pdf")
 
-        print(f"Processing: {filename}.pdf")
-
-        # Extract data
-        usage_df = extract_all_usage_tables(pdf_path, dpi=DPI)
-
-        if not usage_df.empty:
-            # Filter out excluded labels (after parsing, before writing to excel)
-            def should_keep_label(lbl):
-                if pd.isna(lbl) or lbl is None:
-                    return True
-                s = str(lbl).strip()
-                return not any(
-                    re.search(pat, s, re.IGNORECASE) for pat in EXCLUDED_LABEL_PATTERNS
-                )
-
-            usage_df = usage_df[usage_df["Label"].apply(should_keep_label)].reset_index(drop=True)
-            # Normalize labels that are the same in the PDF but get split/truncated by coords (e.g. On ESS -> On Peak Energy ESS)
-            # usage_df["Label"] = usage_df["Label"].replace(LABEL_ALIASES)
-
-            # Write main extracted table
             output_excel = output_folder / f"{filename}_extracted.xlsx"
-            usage_df.to_excel(output_excel, index=False)
-            print(f"Saved: {os.path.abspath(output_excel)}")
-            print(f"Rows: {len(usage_df)}, Years: {usage_df['Year'].unique()}")
+            output_pivoted = output_folder / f"{filename}_pivoted.xlsx"
+            if output_excel.exists() and output_pivoted.exists():
+                print(f"Skipping: outputs already exist for {filename}.pdf")
+                print()
+                continue
+            
+            # Extract data
+            usage_df = extract_all_usage_tables(str(pdf_path), dpi=DPI)
+            
+            if not usage_df.empty:
+                # Filter out excluded labels (after parsing, before writing to excel)
+                def should_keep_label(lbl):
+                    if pd.isna(lbl) or lbl is None:
+                        return True
+                    s = str(lbl).strip()
+                    return not any(
+                        re.search(pat, s, re.IGNORECASE) for pat in EXCLUDED_LABEL_PATTERNS
+                    )
+                usage_df = usage_df[usage_df["Label"].apply(should_keep_label)].reset_index(drop=True)
+                # Normalize labels that are the same in the PDF but get split/truncated by coords (e.g. On ESS -> On Peak Energy ESS)
+                # usage_df["Label"] = usage_df["Label"].replace(LABEL_ALIASES)
+                
+                # Write main extracted table
+                usage_df.to_excel(output_excel, index=False)
+                print(f"Saved: {os.path.abspath(output_excel)}")
+                print(f"Rows: {len(usage_df)}, Years: {usage_df['Year'].unique()}")
 
-            result["extracted"] = output_excel
-            result["rows"] = len(usage_df)
-            result["years"] = usage_df["Year"].dropna().unique().tolist()
-
-            # Pivot table and write second Excel (after existing file is written)
-            pivoted_df = pivot_usage_table(usage_df)
-            if not pivoted_df.empty:
-                output_pivoted = output_folder / f"{filename}_pivoted.xlsx"
-                pivoted_df.to_excel(output_pivoted, index=False)
-                print(f"Saved pivoted: {os.path.abspath(output_pivoted)}")
-                result["pivoted"] = output_pivoted
-        else:
-            print(f"No tables found in {filename}.pdf")
-
-        print()
-    except Exception as e:
-        result["error"] = str(e)
-        print(f"Error processing {pdf_path.name}: {str(e)}")
-        print()
-
-    return result
-
-
-def process_all_pdfs() -> list:
-    pdf_files = list(pdf_folder.glob("*.pdf"))
-
-    if not pdf_files:
-        print(f"No PDF files found in {pdf_folder}")
-        return []
-
-    print(f"Found {len(pdf_files)} PDF file(s) in {pdf_folder}")
-
-    results = []
-    for pdf_path in pdf_files:
-        results.append(process_pdf(pdf_path))
-    return results
-
-
-def main():
-    process_all_pdfs()
-
-
-if __name__ == "__main__":
-    main()
+                # Pivot table and write second Excel (after existing file is written)
+                pivoted_df = pivot_usage_table(usage_df)
+                if not pivoted_df.empty:
+                    pivoted_df.to_excel(output_pivoted, index=False)
+                    print(f"Saved pivoted: {os.path.abspath(output_pivoted)}")
+            else:
+                print(f"No tables found in {filename}.pdf")
+            
+            print()
+        
+        except Exception as e:
+            print(f"Error processing {filename}.pdf: {str(e)}")
+            print()
