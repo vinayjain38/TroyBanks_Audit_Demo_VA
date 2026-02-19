@@ -210,7 +210,7 @@ Opens interactive dashboard at `http://localhost:8501`
 
 ---
 
-## 📊 Data Pipeline
+## �📊 Data Pipeline
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐

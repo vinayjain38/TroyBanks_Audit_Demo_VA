@@ -8,6 +8,7 @@ from sqlalchemy import text
 # This tells Python: "When you see '* Subtotal' in Excel, put it in 'subtotal_raw' in DB"
 
 USAGE_MAPPING = {
+    
     "Year": "year",
     "Month": "month",
     "* Subtotal": "subtotal_raw",
