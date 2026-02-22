@@ -136,7 +136,7 @@ def extract_usage_table_by_coords(pdf_path: str,
 
     # basic clean-up
     data = data[(data.conf.astype(float) > 0) & data.text.notna()]
-    data["text"] = data["text"].str.strip()
+    data["text"] = data["text"].astype(str).str.strip()
     data = data[data["text"] != ""].copy()
 
     # derived columns
@@ -179,7 +179,8 @@ def extract_usage_table_by_coords(pdf_path: str,
                     month_centers[txt_upper] = row["cx"]
                 else:
                     # Multiple instances - use the one with best visibility
-                    if row["conf"] > data[data["text"].str.upper() == txt_upper]["conf"].mean():
+                    text_series = data["text"].astype(str)
+                    if row["conf"] > data[text_series.str.upper() == txt_upper]["conf"].mean():
                         month_centers[txt_upper] = row["cx"]
 
     header_cy = 0  # Initialize header_cy early to avoid unbound variable errors
@@ -363,7 +364,8 @@ def extract_usage_table_by_coords(pdf_path: str,
     # when the row is taller than the y_line_id grouping (LINE_GROUP_PX pixels)
     if not df.empty:
         # Collect rows that are purely values (no label, just orphan values)
-        orphan_mask = df['Label'].isna() | (df['Label'].str.strip() == '')
+        label_series = df["Label"].fillna("").astype(str)
+        orphan_mask = label_series.str.strip().eq("")
         orphan_rows = df[orphan_mask].copy()
         
         if not orphan_rows.empty:
