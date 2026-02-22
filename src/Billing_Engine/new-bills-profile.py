@@ -7,6 +7,7 @@ import re
 import os
 import io
 import sys
+import argparse
 import fitz
 import pytesseract
 import pandas as pd
@@ -351,8 +352,18 @@ def parse_dominion_account_profile(ocr_text: str):
     return [(lbl, pairs[lbl]) for lbl in all_labels]
 
 
+parser = argparse.ArgumentParser(description="Extract account profile from a PDF")
+parser.add_argument("--pdf", help="Process only this PDF path")
+args = parser.parse_args()
+
 # Find all PDFs in the directory
-pdf_files = sorted(PDF_DIR.glob("*.pdf"))
+if args.pdf:
+    single_pdf = Path(args.pdf)
+    if not single_pdf.exists():
+        raise FileNotFoundError(f"PDF not found: {single_pdf}")
+    pdf_files = [single_pdf]
+else:
+    pdf_files = sorted(PDF_DIR.glob("*.pdf"))
 if not pdf_files:
     raise FileNotFoundError(f"No PDF files found in {PDF_DIR}")
 
