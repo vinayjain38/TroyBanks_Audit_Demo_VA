@@ -3,18 +3,26 @@
 
 import os
 import sys
+from pathlib import Path
 import numpy as np
 import pandas as pd
+
+# SRC_DIR = Path(__file__).resolve().parents[1]
+# if str(SRC_DIR) not in sys.path:
+#     sys.path.insert(0, str(SRC_DIR))
+
+from Utils.paths import INTERIM_DIR, NEW_BILLS_PARSED_DIR
 
 # ============================================================
 # CONFIG
 # ============================================================
 
-DATA_DIR = os.path.join(os.getcwd(), "data")
+# PIVOT_DIR = NEW_BILLS_PARSED_DIR
 
 CONFIG = {
-    "IN_BASE": os.path.join(DATA_DIR, "va_step1_base.xlsx"),
-    "OUT_XLSX": os.path.join(DATA_DIR, "va_step2_anomalies.xlsx"),
+    "PIVOT_DIR": NEW_BILLS_PARSED_DIR,
+    "PIVOT_GLOB": "*_pivoted.xlsx",
+    "OUT_XLSX": INTERIM_DIR / "va_step2_anomalies.xlsx",
 
     # Threshold: +50% YoY demand spike
     "YOY_SPIKE_THRESHOLD": 0.50,
@@ -25,7 +33,39 @@ CONFIG = {
 # ============================================================
 
 def safe_to_numeric(x):
-    return pd.to_numeric(x, errors="coerce")
+    if isinstance(x, pd.Series):
+        cleaned = (
+            x.astype(str)
+            .str.replace(r"\s", "", regex=True)
+            .str.replace("$", "", regex=False)
+            .str.replace(",", "", regex=False)
+            .str.replace(r"^\((.*)\)$", r"-\1", regex=True)
+        )
+        return pd.to_numeric(cleaned, errors="coerce")
+    if x is None or (isinstance(x, float) and np.isnan(x)):
+        return np.nan
+    text = str(x).strip()
+    if text == "":
+        return np.nan
+    text = text.replace("$", "").replace(",", "")
+    if text.startswith("(") and text.endswith(")"):
+        text = f"-{text[1:-1]}"
+    return pd.to_numeric(text, errors="coerce")
+
+
+def load_pivoted_inputs():
+    pivot_dir = Path(CONFIG["PIVOT_DIR"])
+    pivot_files = sorted(pivot_dir.glob(CONFIG["PIVOT_GLOB"]))
+    if not pivot_files:
+        raise FileNotFoundError(f"No pivoted files found in {pivot_dir}")
+
+    frames = []
+    for file_path in pivot_files:
+        df = pd.read_excel(file_path, sheet_name="pivoted")
+        df["__source_file"] = file_path.name
+        frames.append(df)
+
+    return pd.concat(frames, ignore_index=True)
 
 
 # ============================================================
@@ -127,19 +167,51 @@ def add_reasons(df):
 def main():
     print("===== STEP 2: VA Anomalies =====")
 
-    # ---- Load Step1 output ----
+    # ---- Load pivoted outputs ----
     try:
-        df = pd.read_excel(CONFIG["IN_BASE"])
+        df = load_pivoted_inputs()
     except Exception as e:
-        print("❌ ERROR reading Step1 output:", e)
+        print("❌ ERROR reading pivoted outputs:", e)
         sys.exit(1)
 
-    df["bill_period_end"] = pd.to_datetime(df["bill_period_end"], errors="coerce")
-    df["usage_kwh"] = safe_to_numeric(df["usage_kwh"])
-    df["demand_kw"] = safe_to_numeric(df["demand_kw"])
-    df["charges"] = safe_to_numeric(df["charges"])
+    df = df.rename(
+        columns={
+            "AccountNumber": "contract_account",
+            "CompanyName": "customer",
+            "Billed Rate": "current_rate",
+            "Bill To": "bill_period_end",
+            "Total Consumption": "usage_kwh",
+            "Demand": "demand_kw",
+            "** Total Charges": "charges",
+        }
+    )
+
+    if "bill_period_end" in df.columns:
+        df["bill_period_end"] = pd.to_datetime(
+            df["bill_period_end"],
+            format="%m/%d/%y",
+            errors="coerce",
+        )
+    else:
+        df["bill_period_end"] = pd.NaT
+
+    df["usage_kwh"] = safe_to_numeric(df.get("usage_kwh", np.nan))
+    df["demand_kw"] = safe_to_numeric(df.get("demand_kw", np.nan))
+    df["charges"] = safe_to_numeric(df.get("charges", np.nan))
 
     df = df.sort_values(["contract_account", "bill_period_end"]).copy()
+
+    df = df.drop_duplicates(subset=["contract_account", "bill_period_end"], keep="last")
+
+    if "bill_month" not in df.columns:
+        df["bill_month"] = df["bill_period_end"].dt.to_period("M").astype(str)
+
+    if "GAP_DAYS_FROM_PREV" not in df.columns:
+        df["GAP_DAYS_FROM_PREV"] = (
+            df.groupby("contract_account")["bill_period_end"]
+            .diff()
+            .dt.days
+        )
 
     # ---- add YoY + history ----
     df = add_seasonality_yoy(df)
@@ -149,8 +221,8 @@ def main():
 
     # ---- monthly anomalies sheet ----
     cols = [
-        "contract_account", "customer", "current_rate", "rate_code_norm",
-        "address_suppl", "addr_suppl_norm", "city", "state", "zip",
+        "contract_account", "customer", "current_rate", 
+        # "rate_code_norm", "address_suppl", "addr_suppl_norm", "city", "state", "zip",
         "bill_month", "bill_period_end",
         "usage_kwh", "demand_kw", "charges",
         "GAP_DAYS_FROM_PREV",
@@ -170,7 +242,7 @@ def main():
     acct = df.groupby("contract_account").agg(
         customer=("customer", "first"),
         current_rate=("current_rate", "first"),
-        rate_code_norm=("rate_code_norm", "first"),
+        # rate_code_norm=("rate_code_norm", "first"),
         bills=("bill_period_end", "count"),
         max_gap_days=("GAP_DAYS_FROM_PREV", "max"),
         has_12m_history=("HAS_12M_HISTORY", "max"),
