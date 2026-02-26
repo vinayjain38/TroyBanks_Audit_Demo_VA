@@ -46,6 +46,7 @@
 #!/usr/bin/env python3
 import os
 import sys
+import argparse
 from datetime import datetime
 from pathlib import Path
 import pandas as pd
@@ -82,7 +83,8 @@ def load_usage(path: str) -> pd.DataFrame:
             '** Total Charges': 'charges',
             'Billed Rate': 'current_rate',
             'Bill To': 'bill_period_end',
-            'Demand': 'demand_kw'
+            'Demand': 'demand_kw',
+            "AccountNumber": "contract_account"
         })
         
         # Clean the charges column - remove $ and convert to float
@@ -100,17 +102,6 @@ def load_usage(path: str) -> pd.DataFrame:
         else:
             df['demand_kw'] = 0.0
         
-        # Extract account number from filename (e.g., Profile6020_pivoted.xlsx -> 6020)
-        if 'contract_account' not in df.columns:
-            import re
-            filename = os.path.basename(path)
-            match = re.search(r'Profile(\d+)', filename)
-            if match:
-                account_num = match.group(1)
-                df['contract_account'] = account_num
-            else:
-                # If no profile number found, use filename without extension
-                df['contract_account'] = os.path.splitext(filename)[0]
     else:
         # Original format - ensure columns exist
         df["usage_kwh"] = df["usage_kwh"]
@@ -880,6 +871,10 @@ SCHEDULE_FUNCS = {
 
 # ==== MAIN ====
 def main():
+    parser = argparse.ArgumentParser(description="Run tariff calculations on pivoted bill data")
+    parser.add_argument("--pivoted", help="Process only this pivoted Excel file path")
+    args = parser.parse_args()
+
     # 1. Load riders once (shared across all files)
     try:
         riders_df = load_riders(str(RIDERS_PATH))
@@ -887,9 +882,20 @@ def main():
         print(f"ERROR loading riders: {e}", file=sys.stderr)
         sys.exit(1)
     
-    # 2. Find all pivoted files
-    pivoted_pattern = os.path.join(PIVOTED_DIR, "*_pivoted.xlsx")
-    pivoted_files = glob.glob(pivoted_pattern)
+    # 2. Resolve input files
+    if args.pivoted:
+        input_file = Path(args.pivoted)
+        if not input_file.exists():
+            print(f"ERROR: Input file not found: {input_file}", file=sys.stderr)
+            sys.exit(1)
+        if input_file.suffix.lower() not in {".xlsx", ".xls"}:
+            print(f"ERROR: Input must be an Excel file (.xlsx or .xls): {input_file}", file=sys.stderr)
+            sys.exit(1)
+
+        pivoted_files = [str(input_file)]
+    else:
+        pivoted_pattern = os.path.join(PIVOTED_DIR, "*_pivoted.xlsx")
+        pivoted_files = glob.glob(pivoted_pattern)
     
     if not pivoted_files:
         print(f"ERROR: No pivoted files found in {PIVOTED_DIR}", file=sys.stderr)
@@ -924,6 +930,10 @@ def main():
         
         # 5. Write output with same filename to export directory
         output_path = os.path.join(EXPORT_DIR, filename)
+        if "charges" in combined.columns:
+            combined["charges"] = pd.to_numeric(combined["charges"], errors="coerce").map(
+                lambda value: f"${value:,.2f}" if pd.notna(value) else ""
+            )
         combined.to_excel(output_path, index=False)
         print(f"  Saved: {output_path}")
     

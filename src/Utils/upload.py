@@ -1,4 +1,7 @@
 import pandas as pd
+import argparse
+import sys
+from pathlib import Path
 from src.Utils.database import engine
 from sqlalchemy import text
 
@@ -181,19 +184,26 @@ def upload_riders(file_path):
     df.to_sql('rider_rates', con=engine, if_exists='replace', index=False)
     print("Done!")
 
-# ==========================================
-# MAIN EXECUTION (EDIT THIS PART)
-# ==========================================
+def main():
+    parser = argparse.ArgumentParser(description="Upload pivoted usage Excel data to database")
+    parser.add_argument("--pivoted", help="Path to pivoted Excel file")
+    args = parser.parse_args()
+
+    if not args.pivoted:
+        print("ERROR: --pivoted argument is required", file=sys.stderr)
+        sys.exit(1)
+
+    input_file = Path(args.pivoted)
+    if not input_file.exists():
+        print(f"ERROR: Input file not found: {input_file}", file=sys.stderr)
+        sys.exit(1)
+
+    if input_file.suffix.lower() not in {".xlsx", ".xls"}:
+        print(f"ERROR: Input must be an Excel file (.xlsx or .xls): {input_file}", file=sys.stderr)
+        sys.exit(1)
+
+    upload_usage_data(str(input_file))
+
+
 if __name__ == "__main__":
-    
-    # 1. Upload Usage Data (Change filename to your actual file)
-    # upload_usage_data("Example.xlsx") 
-    
-    # 2. Upload Riders (Change filename)
-    # upload_riders("Riders_Info.xlsx")
-    
-    # 3. Upload Tariffs (If you have separate files for schedules)
-    # upload_tariff_data("Schedule_100.xlsx", "100")
-    # upload_tariff_data("Schedule_130.xlsx", "130")
-    
-    print("All uploads complete.")
+    main()
