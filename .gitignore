@@ -28,4 +28,4 @@ src/va_step2_anomalies.py
 #config files
 *.cfg
 config/config.yaml
-airflow.cfg
+!infra/airflow/config/airflow.cfg

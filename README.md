@@ -283,6 +283,28 @@ data/rider_tables_new/[rider file]
 data/export/
 ```
 
+### Airflow config and secrets
+
+- `infra/airflow/config/airflow.cfg` is committed for reproducible non-secret defaults.
+- Secrets and credentials must be set in `.env` (ignored by git).
+- Start from `.env.example`:
+
+```bash
+cp .env.example .env
+```
+
+Required Airflow variables in `.env`:
+
+- `AIRFLOW__CORE__FERNET_KEY`
+- `AIRFLOW__API__SECRET_KEY`
+- `AIRFLOW__API_AUTH__JWT_SECRET`
+- `AIRFLOW__DATABASE__SQL_ALCHEMY_CONN`
+- `AIRFLOW__CELERY__RESULT_BACKEND`
+- `AIRFLOW__CELERY__BROKER_URL`
+- `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
+
+For local development, Airflow reads values from `.env` via `infra/airflow/docker-compose.yaml`, and env vars override `airflow.cfg`.
+
 ---
 
 ## 📄 File Guide
