@@ -24,3 +24,7 @@ test/
 
 src/va_step1_base.py
 src/va_step2_anomalies.py
+
+#config files
+config/config.yaml
+airflow.cfg
