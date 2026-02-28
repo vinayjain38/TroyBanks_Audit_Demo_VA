@@ -48,6 +48,11 @@ USAGE_MAPPING = {
     "W": "w_misc",
     "�": "unknown_symbol",
     "PITTSYLVANIA CNTY SRVC AUTH |": "service_auth_name",
+    # occasionally the pivoted sheet might already carry customer/account info
+    "Account Number": "accountNumber",
+    "ACCOUNT NO." : "accountNumber",
+    "Customer Name": "CompanyName",
+    "Account Profile": "CompanyName",
     # Riders: Parser normalizes all casing variants to canonical form (kW / kWh)
     # so only canonical keys needed here
     "Rider B kW": "rider_b_kw",
@@ -126,7 +131,34 @@ RIDER_MAPPING = {
 # UPLOAD FUNCTIONS
 # ==========================================
 
-def upload_usage_data(file_path):
+def upload_usage_data(file_path, profile_path=None):
+    """Read a *pivoted* Excel sheet and push it to the DB.
+
+    ``file_path`` may be a single Excel workbook or a directory containing
+    many pivoted files.  When a companion ``profile_path`` is supplied (or
+    inferred), the stem of the two filenames is compared to make sure the
+    metadata comes from the correct pair.
+
+    The key used to match files is the common prefix before the suffix
+    (typically "_<date>" such as "Profile0512").
+    """
+    file_obj = Path(file_path)
+
+    # running against directory: iterate over pivoted files
+    if file_obj.is_dir():
+        for pivoted in sorted(file_obj.glob("*_pivoted*.xls*")):
+            # infer profile using same logic as below, but restricted to this stem
+            stem = pivoted.stem
+            suffix = pivoted.suffix
+            candidate = pivoted.with_name(stem.replace("_pivoted", "_page2_parsed") + suffix)
+            prof_arg = str(candidate) if candidate.exists() else None
+            if prof_arg is None:
+                print(f"[WARN] no profile file found for {pivoted.name}; uploading without metadata")
+            else:
+                print(f"paired {pivoted.name} ⇄ {candidate.name}")
+            upload_usage_data(str(pivoted), profile_path=prof_arg)
+        return
+
     print(f"Reading Usage Data from {file_path}...")
     # Read Excel, force everything to String (dtype=str) to avoid date/float errors
     try:
@@ -146,7 +178,37 @@ def upload_usage_data(file_path):
     # Keep only the columns that match our Database Table (ignore extra junk in Excel)
     valid_columns = [col for col in df.columns if col in USAGE_MAPPING.values()]
     df = df[valid_columns]
-    
+
+    # ------------------------------------------------------------------
+    # Attempt to merge profile information (account number / customer name)
+    # ------------------------------------------------------------------
+    if profile_path is None:
+        # infer based on naming convention
+        path_obj = Path(file_path)
+        stem = path_obj.stem
+        if stem.endswith("_pivoted"):
+            candidate = path_obj.with_name(stem.replace("_pivoted", "_page2_parsed") + path_obj.suffix)
+            if candidate.exists():
+                profile_path = str(candidate)
+    if profile_path:
+        # verify matching stems
+        pf = Path(profile_path)
+        if pf.stem.replace("_page2_parsed", "") != Path(file_path).stem.replace("_pivoted", ""):
+            print(f"[WARNING] pivoted file '{Path(file_path).name}' and profile '{pf.name}' have mismatched keys")
+        try:
+            print(f"Reading profile data from {profile_path}...")
+            prof_df = pd.read_excel(profile_path, dtype=str)
+            # expect two columns: Label, Value
+            kv = dict(zip(prof_df.iloc[:,0].astype(str), prof_df.iloc[:,1].astype(str)))
+            acct = kv.get("ACCOUNT NO.", kv.get("Account Number", ""))
+            cust = kv.get("Account Profile", kv.get("Customer Name", ""))
+            if acct or cust:
+                df["accountNumber"] = acct
+                df["CompanyName"] = cust
+                print("Added account/customer columns from profile file.")
+        except Exception as e:
+            print(f"Warning: failed to read profile file: {e}")
+
     print(f"Uploading {len(df)} rows to 'usage_bill'...")
     # if_exists='append' adds to existing data. Use 'replace' to wipe and start over.
     df.to_sql('usage_bill', con=engine, if_exists='append', index=False)
@@ -186,7 +248,8 @@ def upload_riders(file_path):
 
 def main():
     parser = argparse.ArgumentParser(description="Upload pivoted usage Excel data to database")
-    parser.add_argument("--pivoted", help="Path to pivoted Excel file")
+    parser.add_argument("--pivoted", help="Path to pivoted Excel file or directory containing multiple pivoted files")
+    parser.add_argument("--profile", help="Optional path to companion profile Excel file (ignored when directory is provided)")
     args = parser.parse_args()
 
     if not args.pivoted:
@@ -195,14 +258,15 @@ def main():
 
     input_file = Path(args.pivoted)
     if not input_file.exists():
-        print(f"ERROR: Input file not found: {input_file}", file=sys.stderr)
+        print(f"ERROR: Input not found: {input_file}", file=sys.stderr)
         sys.exit(1)
 
-    if input_file.suffix.lower() not in {".xlsx", ".xls"}:
-        print(f"ERROR: Input must be an Excel file (.xlsx or .xls): {input_file}", file=sys.stderr)
-        sys.exit(1)
+    profile_file = None
+    if args.profile:
+        profile_file = args.profile
 
-    upload_usage_data(str(input_file))
+    # delegate to upload_usage_data which now handles directories too
+    upload_usage_data(str(input_file), profile_path=profile_file)
 
 
 if __name__ == "__main__":

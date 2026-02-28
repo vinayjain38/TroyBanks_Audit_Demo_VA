@@ -249,12 +249,21 @@ def main():
     )
 
     # Map names back for output
+    # Drop the old duplicate column before renaming to prevent the alignment error
+    if 'bill_period_end' in audit_df.columns:
+        audit_df = audit_df.drop(columns=['bill_period_end'])
+        
     audit_df = audit_df.rename(columns={"Account_ID": "account_number", "Bill To": "bill_period_end"})
 
     # 5. Filter for the "Most Recent 12 Months" per account
-    # This finds the max date for each account, and only keeps the last 365 days of bills
-    audit_df['Max_Date'] = audit_df.groupby('account_number')['bill_period_end'].transform('max')
-    recent_12_months_mask = audit_df['bill_period_end'] >= (audit_df['Max_Date'] - pd.Timedelta(days=365))
+    # Compute each account's latest bill_period_end explicitly (avoid pandas transform hiccup)
+    # compute per-account max using agg (produces one-column DataFrame)
+    max_dates = audit_df.groupby('account_number').agg(Max_Date=('bill_period_end', 'max'))
+    # map the maximum date back onto the main frame; this yields a Series
+    audit_df['Max_Date'] = audit_df['account_number'].map(max_dates['Max_Date'])
+    recent_12_months_mask = audit_df['bill_period_end'] >= (
+        audit_df['Max_Date'] - pd.Timedelta(days=365)
+    )
     recent_df = audit_df[recent_12_months_mask].copy()
 
     # 6. Isolate Anomalies and Output

@@ -55,7 +55,16 @@ class UsageBill(Base):
     __tablename__ = "usage_bill"
 
     id = Column(Integer, primary_key=True, index=True)
-
+  # --------------------------------------------------
+    # ACCOUNT METADATA (added for customer tracking)
+    # these fields are populated from the companion "profile" file
+    # that comes out of the billing engine (page2_parsed output).
+    # The names here have to match the ones used elsewhere in the
+    # codebase (see va_step2_anomalies_db.py, test_data_generator.py,
+    # etc.) so we deliberately use camel‑case column names.
+    accountNumber = Column(String, nullable=True)
+    CompanyName = Column(String, nullable=True)
+    uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
     # Basic Info
     year = Column(String, nullable=True)
     month = Column(String, nullable=True)
@@ -160,4 +169,4 @@ class UsageBill(Base):
     w_misc = Column(String, nullable=True)
     unknown_symbol = Column(String, nullable=True)
 
-    uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
+    
