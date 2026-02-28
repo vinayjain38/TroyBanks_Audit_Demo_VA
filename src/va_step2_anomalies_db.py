@@ -172,7 +172,8 @@ def get_table_columns(table_name):
 def main():
     print("===== STEP 2: VA Anomalies (Latest Year YoY Analysis) =====")
 
-    base_cols = ["bill_from_raw", "bill_to_raw", "total_consumption", "demand", "total_charges_raw", "billed_rate"]
+    # UPDATE THIS LINE:
+    base_cols = ["bill_from_raw", "bill_to_raw", "total_consumption", "demand", "total_charges_raw", "billed_rate", "uploaded_at"]
     available_cols = get_table_columns(CONFIG["USAGE_TABLE"])
     cols = base_cols.copy()
     if "accountNumber" in available_cols: cols.append("accountNumber")
@@ -255,27 +256,35 @@ def main():
         
     audit_df = audit_df.rename(columns={"Account_ID": "account_number", "Bill To": "bill_period_end"})
 
-    # 5. Filter for the "Most Recent 12 Months" per account
-    # Compute each account's latest bill_period_end explicitly (avoid pandas transform hiccup)
-    # compute per-account max using agg (produces one-column DataFrame)
+    # ---------------------------------------------------------
+    # 5. Filter for "Recent Uploads" AND "Recent 12 Months"
+    # ---------------------------------------------------------
+    # Ensure datetimes are parsed correctly
+    audit_df['uploaded_at'] = pd.to_datetime(audit_df['uploaded_at'])
+    
+    # A. The Chronological Filter (Keep only the trailing 12 months)
     max_dates = audit_df.groupby('account_number').agg(Max_Date=('bill_period_end', 'max'))
-    # map the maximum date back onto the main frame; this yields a Series
     audit_df['Max_Date'] = audit_df['account_number'].map(max_dates['Max_Date'])
-    recent_12_months_mask = audit_df['bill_period_end'] >= (
-        audit_df['Max_Date'] - pd.Timedelta(days=365)
-    )
-    recent_df = audit_df[recent_12_months_mask].copy()
+    recent_12_months_mask = audit_df['bill_period_end'] >= (audit_df['Max_Date'] - pd.Timedelta(days=365))
+
+    # B. The Upload Batch Filter (Keep only rows uploaded in the last hour)
+    max_upload = audit_df.groupby('account_number').agg(Latest_Upload=('uploaded_at', 'max'))
+    audit_df['Latest_Upload'] = audit_df['account_number'].map(max_upload['Latest_Upload'])
+    recent_batch_mask = audit_df['uploaded_at'] >= (audit_df['Latest_Upload'] - pd.Timedelta(hours=1))
+
+    # Combine both rules: Must be a recent bill AND part of the current upload batch
+    final_mask = recent_12_months_mask & recent_batch_mask
+    recent_df = audit_df[final_mask].copy()
 
     # 6. Isolate Anomalies and Output
     anomalies_df = recent_df[recent_df["Is_Usage_Anomaly"] | recent_df["Is_New_Activation"]].copy()
 
     col_order = [
-        "account_number", "customer", "bill_period_end", 
+        "account_number", "customer", "bill_period_end", "uploaded_at", 
         "Total Consumption", "Demand", "Total Charges", 
         "Effective_Cost_per_kWh", "Load_Factor", "Eligible_For_Rate_Upgrade",
         "Is_Usage_Anomaly", "Is_New_Activation", "Anomaly_Reason"
     ]
-
     if anomalies_df.empty:
         print("[INFO] No anomalies detected in the most recent 12 months.")
         anomalies_df = pd.DataFrame(columns=col_order)
@@ -297,6 +306,20 @@ def main():
 
     # 7. Write Excel
     try:
+        # Ensure any timezone-aware datetimes are converted to timezone-naive for Excel
+        def _ensure_naive(series):
+            series = pd.to_datetime(series)
+            try:
+                if series.dt.tz is not None:
+                    return series.dt.tz_convert(None)
+            except Exception:
+                pass
+            return series
+
+        for _dt_col in ("uploaded_at", "bill_period_end"):
+            if _dt_col in anomalies_df.columns:
+                anomalies_df[_dt_col] = _ensure_naive(anomalies_df[_dt_col])
+
         with pd.ExcelWriter(OUT_XLSX, engine="openpyxl") as writer:
             anomalies_df.to_excel(writer, sheet_name="anomalies", index=False)
 

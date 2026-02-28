@@ -4,6 +4,8 @@ import sys
 from pathlib import Path
 from src.Utils.database import engine
 from sqlalchemy import text
+import datetime
+from src.Utils.db_upsert import upsert_dataframe
 
 # ==========================================
 # CONFIGURATION: COLUMN MAPPINGS
@@ -209,10 +211,33 @@ def upload_usage_data(file_path, profile_path=None):
         except Exception as e:
             print(f"Warning: failed to read profile file: {e}")
 
+    # ==========================================================
+    # FIX 1: Timestamp assignment moved OUTSIDE the try/catch block
+    # so every single upload gets tagged properly.
+    # ==========================================================
+    df['uploaded_at'] = datetime.datetime.now()
+
+    # ==========================================================
+    # FIX 2: Database Constraint Safety Net
+    # If the profile failed to load, we must assign a placeholder account,
+    # otherwise the Postgres unique constraint will crash the upsert.
+    # ==========================================================
+    if "accountNumber" not in df.columns or df["accountNumber"].isnull().all():
+        print("[WARNING] No Account Number found. Defaulting to 'UNKNOWN_ACCOUNT'.")
+        df["accountNumber"] = "UNKNOWN_ACCOUNT"
+        df["CompanyName"] = "Unknown Customer"
+
     print(f"Uploading {len(df)} rows to 'usage_bill'...")
-    # if_exists='append' adds to existing data. Use 'replace' to wipe and start over.
-    df.to_sql('usage_bill', con=engine, if_exists='append', index=False)
-    print("Done!")
+    
+    # Define the unique columns that determine a "duplicate" bill
+    conflict_columns = ["accountNumber", "bill_from_raw", "bill_to_raw"]
+    
+    upsert_dataframe(
+        df=df, 
+        table_name='usage_bill', 
+        engine=engine, 
+        unique_cols=conflict_columns
+    )
 
 def upload_tariff_data(file_path, schedule_code):
     print(f"Reading Tariff Data for Schedule {schedule_code}...")
