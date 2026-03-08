@@ -11,6 +11,8 @@ class TariffRate(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     schedule_code = Column(String, index=True, nullable=False) # e.g. "100", "130"
+    # Add this right below the schedule_code or primary key in models.py
+    version = Column(Integer, default=1, index=True)
     
     category = Column(String, nullable=True)
     sub_category = Column(String, nullable=True)
@@ -33,6 +35,9 @@ class RiderRate(Base):
     # The Row Header (e.g., "SCHEDULE 100", "TRAFFIC", "OUTDOOR LIGHTING")
     rate_schedule = Column(String, index=True, nullable=True) 
 
+    # Add this right below the schedule_code or primary key in models.py
+    version = Column(Integer, default=1, index=True)
+
     # The Columns (Riders) - Stored as String to handle '$', '/', and text notes
     t_cm = Column(String, nullable=True)
     b_cm = Column(String, nullable=True)
@@ -45,6 +50,7 @@ class RiderRate(Base):
     ce_cm = Column(String, nullable=True)
     rbb_cm = Column(String, nullable=True)
     e_cm = Column(String, nullable=True)
+
 
     uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
 
