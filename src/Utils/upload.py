@@ -26,7 +26,7 @@ USAGE_MAPPING = {
     "Other Charges/Credits": "other_charges_credits", "kW Adj ESS Secondary": "kw_adj_ess_secondary",
     "W": "w_misc", "": "unknown_symbol", "PITTSYLVANIA CNTY SRVC AUTH |": "service_auth_name",
     "Account Number": "accountNumber", "ACCOUNT NO." : "accountNumber",
-    "Customer Name": "CompanyName", "Account Profile": "CompanyName",
+    "Customer Name": "accountName", "Account Profile": "accountName", "Account Name" : "accountName",
     "Rider B kW": "rider_b_kw", "Rider B kWh": "rider_b_kwh", "Rider BW kW": "rider_bw_kw",
     "Rider BW kWh": "rider_bw_kwh", "Rider CCR": "rider_ccr", "Rider CE kW": "rider_ce_kw",
     "Rider CE kWh": "rider_ce_kwh", "Rider DIST kW": "rider_dist_kw", "Rider DIST kWh": "rider_dist_kwh",

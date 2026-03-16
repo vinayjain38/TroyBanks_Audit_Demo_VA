@@ -69,7 +69,7 @@ class UsageBill(Base):
     # codebase (see va_step2_anomalies_db.py, test_data_generator.py,
     # etc.) so we deliberately use camel‑case column names.
     accountNumber = Column(String, nullable=True)
-    CompanyName = Column(String, nullable=True)
+    accountName = Column(String, nullable=True)
     uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
     # Basic Info
     year = Column(String, nullable=True)
