@@ -1,0 +1,11 @@
+.env
+local.env
+ATT52840.env
+.venv-doc/
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+infra/airflow/logs/*
+!infra/airflow/logs/.gitkeep
+*.pem

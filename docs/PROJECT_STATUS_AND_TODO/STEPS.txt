@@ -1,0 +1,96 @@
+================================================================================
+LAUNCH GUIDE — Troy & Banks Audit (Docker)
+================================================================================
+
+Default URLs after a standard launch:
+  • API (health):  http://localhost:8000/health
+  • Streamlit UI:  http://localhost:8501
+
+If ports 8000 or 8501 are already in use, set API_HOST_PORT and/or
+STREAMLIT_HOST_PORT in .env (see .env.example), then use the matching
+BACKEND_URL when you run Streamlit on the host outside Docker.
+
+
+PRIMARY LAUNCH — API + Streamlit (recommended daily use)
+--------------------------------------------------------------------------------
+
+Step 1 — Open a terminal in the project root (folder that contains docker-compose.yml).
+
+Step 2 — Create your environment file
+        cp .env.example .env
+
+Step 3 — Edit .env
+        Set DATABASE_URL to your PostgreSQL connection string.
+        Optionally set API_HOST_PORT / STREAMLIT_HOST_PORT if defaults conflict.
+        Save. Do not commit .env to git.
+
+Step 4 — (Only if this database has never had your tables before)
+        docker compose up -d --build backend
+        Wait until the backend is healthy, then:
+        docker compose exec backend python -c "from src.Utils.createdb import *"
+        Skip if tables already exist.
+
+Step 5 — Start the web app
+        docker compose up -d --build backend frontend
+
+Step 6 — Verify the API
+        Browser: http://localhost:8000/health
+        (If you changed API_HOST_PORT, use that port instead.)
+        Expect: {"status":"ok"} or similar.
+
+Step 7 — Open the Streamlit UI
+        http://localhost:8501
+        (If you changed STREAMLIT_HOST_PORT, use that port instead.)
+
+Step 8 — Smoke test
+        Upload a billing PDF (or use Past usage if you already have data).
+        Open Results / Analysis tabs; try recalculation or tariff/rider flows as needed.
+
+Step 9 — If something fails
+        docker compose logs -f backend
+        docker compose logs -f frontend
+        Check DATABASE_URL, network access to Postgres, and data files under data/.
+
+Step 10 — Stop when done
+        docker compose stop
+        or: docker compose down
+
+
+OPTIONAL — Full stack (Airflow + Redis + Airflow Postgres)
+--------------------------------------------------------------------------------
+
+Step 11 — Add Airflow variables to .env
+        Follow comments in .env.example (FERNET_KEY, SQL_ALCHEMY_CONN, Redis, etc.).
+        If Streamlit is not on 8501, set AIRFLOW_UI_ORIGINS to match (see .env.example).
+
+Step 12 — Start everything
+        docker compose up -d --build
+
+Step 13 — Airflow UI
+        http://localhost:8080
+        (Use the Airflow credentials from your .env.)
+
+
+PRODUCTION / EC2 (when you deploy to a server)
+--------------------------------------------------------------------------------
+
+Step 14 — Server with Docker and Docker Compose; clone or copy this project.
+
+Step 15 — Place .env on the server (never commit it).
+
+Step 16 — Security group / firewall: 22 (SSH), 8000 (API), 8501 (UI), 8080 only if Airflow.
+
+Step 17 — From the project folder:
+        docker compose up -d --build backend frontend
+        (or full compose if you need Airflow).
+
+Step 18 — Optional: Nginx on 80/443 in front of 8501 / 8000, TLS, tighten FastAPI CORS.
+
+
+POLISH (any time)
+--------------------------------------------------------------------------------
+
+Step 19 — Regenerate the Word status doc after big changes:
+        python docs/PROJECT_STATUS_AND_TODO/generate_documentation_docx.py
+
+================================================================================

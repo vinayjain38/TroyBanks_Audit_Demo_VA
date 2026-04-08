@@ -1,0 +1,8 @@
+streamlit
+requests
+pandas
+numpy
+altair
+xlsxwriter
+python-dotenv
+streamlit-searchbox

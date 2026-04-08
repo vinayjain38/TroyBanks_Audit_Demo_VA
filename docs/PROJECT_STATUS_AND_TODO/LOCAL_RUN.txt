@@ -1,0 +1,27 @@
+Launch (local Docker) — quick reference
+========================================
+
+Default URLs:  API http://localhost:8000/health  ·  UI http://localhost:8501
+(Ports configurable via API_HOST_PORT / STREAMLIT_HOST_PORT in .env — see .env.example.)
+
+1) Create .env at project root
+   cp .env.example .env
+   Edit DATABASE_URL (Postgres). Adjust host ports only if 8000 or 8501 are taken.
+
+2) Start API + Streamlit (no Airflow)
+   docker compose up -d --build backend frontend
+
+3) First-time empty database (optional)
+   docker compose exec backend python -c "from src.Utils.createdb import *"
+
+4) Full stack (Airflow)
+   docker compose up -d --build
+   Set AIRFLOW_UI_ORIGINS in .env if Streamlit is not on http://localhost:8501.
+
+5) Logs
+   docker compose logs -f backend
+   docker compose logs -f frontend
+
+Stop:  docker compose stop   or   docker compose down
+
+Full numbered checklist:  docs/PROJECT_STATUS_AND_TODO/STEPS.txt
