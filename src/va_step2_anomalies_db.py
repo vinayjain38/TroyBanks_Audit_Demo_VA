@@ -149,9 +149,12 @@ def get_db_engine():
     if get_engine is not None:
         try: return get_engine()
         except Exception: pass
-    url = os.environ.get("DATABASE_URL")
-    if not url: raise RuntimeError("No DB engine available and DATABASE_URL not set")
-    if url.startswith("postgres://"): url = url.replace("postgres://", "postgresql+psycopg2://", 1)
+    try:
+        from src.config import DB_URL
+        url = DB_URL
+    except Exception:
+        url = os.environ.get("DATABASE_URL")
+    if not url: raise RuntimeError("No DB engine available and DB_URL not set")
     return sqlalchemy.create_engine(url)
 
 def load_usage_table(cols):

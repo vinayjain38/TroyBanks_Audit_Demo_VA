@@ -50,23 +50,27 @@ def main() -> None:
     data.setdefault("POSTGRES_PASSWORD", "airflow")
     data.setdefault("POSTGRES_DB", "airflow")
 
-    if "DATABASE_URL" not in data or "USER:PASSWORD" in data.get("DATABASE_URL", ""):
-        raise SystemExit(
-            "DATABASE_URL missing or still a placeholder. "
-            "Add secrets to local.env (gitignored), or edit .env with a real DATABASE_URL."
-        )
+    db_type = data.get("DB_TYPE", "sqlite")
+    if db_type == "postgres":
+        missing = [k for k in ("DB_USER", "DB_PASSWORD", "DB_HOST", "DB_PORT", "DB_NAME") if not data.get(k)]
+        if missing:
+            raise SystemExit(
+                f"DB_TYPE=postgres but these vars are missing or empty: {', '.join(missing)}. "
+                "Add them to local.env (gitignored) or .env.example."
+            )
 
     # Stable key order: app DB first, then Airflow
     preferred = [
-        "DATABASE_URL",
-        "TESSERACT_PATH",
-        "TESSDATA_PREFIX",
-        "OPENAI_API_KEY",
+        "DB_TYPE",
+        "DB_PATH",
         "DB_HOST",
         "DB_PORT",
         "DB_NAME",
         "DB_USER",
         "DB_PASSWORD",
+        "TESSERACT_PATH",
+        "TESSDATA_PREFIX",
+        "OPENAI_API_KEY",
         "ENV_FILE_PATH",
         "AIRFLOW_PROJ_DIR",
         "AIRFLOW_UID",

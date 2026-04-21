@@ -5,9 +5,9 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+    container_name: utility-va-api
     ports:
-      # Expose API on port 8000
-      - "8000:8000"
+      - "8001:8000"
     env_file:
       - .env
     environment:
@@ -26,14 +26,18 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
+    container_name: utility-va-streamlit
     ports:
-      # Expose Streamlit UI on port 80 (standard web port for AWS)
-      - "80:8501"
+      - "8502:8501"
     depends_on:
       backend:
         condition: service_healthy
     environment:
-      # Streamlit runs server-side, so it communicates to the backend using 
-      # internal Docker DNS ('backend' is the service name)
       BACKEND_URL: http://backend:8000
+      STREAMLIT_SERVER_BASE_URL_PATH: /va
     restart: always
+
+networks:
+  default:
+    name: utility-billing-ai_default
+    external: true
