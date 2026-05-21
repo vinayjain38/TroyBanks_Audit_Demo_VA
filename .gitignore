@@ -9,3 +9,6 @@ __pycache__/
 infra/airflow/logs/*
 !infra/airflow/logs/.gitkeep
 *.pem
+data/*.db
+data/project.db
+data/test.db

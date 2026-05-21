@@ -1,0 +1,535 @@
+/* Light: warm white background, black text */
+[data-testid="stAppViewContainer"] { background: #f7f4ef !important; color: #0a0a0a !important; }
+[data-testid="stHeader"], [data-testid="stDecoration"], [data-testid="stToolbar"] {
+    background: #f7f4ef !important;
+}
+section[data-testid="stSidebar"] {
+    background-color: #faf8f5 !important;
+    border-right: 1px solid #e8e0d6 !important;
+}
+[data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label,
+[data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3,
+[data-testid="stSidebar"] .stMarkdown {
+    color: #0a0a0a !important;
+}
+section[data-testid="stSidebar"] p.sidebar-nav-lead {
+    color: #5c534c !important;
+    line-height: 1.6 !important;
+    font-size: 0.76rem !important;
+}
+section[data-testid="stSidebar"] p.sidebar-nav-hint {
+    color: #4b5563 !important;
+    line-height: 1.5 !important;
+    font-size: 0.74rem !important;
+}
+section[data-testid="stSidebar"] p.sidebar-nav-hint strong { color: #111111 !important; }
+section[data-testid="stSidebar"] p.sidebar-nav-hint span { color: #5c534c !important; }
+
+.main, .main p, .main span, .main label, .stMarkdown, [data-testid="stMarkdownContainer"] p {
+    color: #111111 !important;
+}
+
+.block-container {
+    padding-top: 2.75rem !important;
+}
+section.main > div {
+    padding-top: 0.35rem !important;
+}
+.premium-strip {
+    padding: 0.85rem 1rem 0.8rem !important;
+    margin: 0.5rem 0 1rem !important;
+    line-height: 1.55 !important;
+    overflow: visible !important;
+}
+
+.hero, .results-nav, .kpi-card, .info-item, .form-panel, .premium-strip {
+    background: #faf8f5 !important;
+    border-color: #e8e0d6 !important;
+    color: #0a0a0a !important;
+}
+
+h1, h2, h3, h4, h5, h6, p, span, div, label, small {
+    color: #111111 !important;
+}
+.section-title, .kpi-label, .hero-sub, .results-nav-file, .hero-meta {
+    color: #404040 !important;
+}
+
+/* Usage section: Graph / Table mode labels */
+.usage-mode-active { color: #c2410c !important; font-weight: 800 !important; }
+.usage-mode-inactive { color: #6b7280 !important; font-weight: 600 !important; }
+
+/* Usage graph/table toggle — visible off-state track in light mode */
+[class*="account_usage_table_toggle"] [data-baseweb="toggle"] {
+    background-color: #d4ccc0 !important;
+}
+[class*="account_usage_table_toggle"] [data-baseweb="toggle"][aria-checked="true"] {
+    background-color: #ea580c !important;
+}
+[class*="account_usage_table_toggle"] [data-baseweb="toggle"] > div {
+    background-color: #ffffff !important;
+    border: 1px solid #a8a29e !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12) !important;
+}
+.kpi-value, .info-item-value {
+    color: #000000 !important;
+}
+.hero-title, .results-nav-title {
+    background: none !important;
+    -webkit-text-fill-color: #000000 !important;
+    color: #000000 !important;
+    text-shadow: none !important;
+    filter: none !important;
+}
+
+[data-testid="stTabs"] [role="tablist"] {
+    background: #f0ebe3 !important;
+    border-color: #e8e0d6 !important;
+    box-shadow: none !important;
+}
+[data-testid="stTabs"] [role="tab"],
+[data-testid="stTabs"] button[data-baseweb="tab"] {
+    color: #404040 !important;
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+[data-testid="stTabs"] [role="tab"] *,
+[data-testid="stTabs"] button[data-baseweb="tab"] * {
+    color: inherit !important;
+    -webkit-text-fill-color: inherit !important;
+}
+[data-testid="stTabs"] [role="tab"][aria-selected="true"],
+[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border: 1px solid #d4ccc0 !important;
+    -webkit-text-fill-color: #000000 !important;
+}
+[data-testid="stTabs"] [role="tab"][aria-selected="true"] *,
+[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] * {
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
+}
+[data-testid="stTabs"] [role="tab"]:hover:not([aria-selected="true"]),
+[data-testid="stTabs"] button[data-baseweb="tab"]:hover:not([aria-selected="true"]) {
+    background: #ebe6de !important;
+    color: #000000 !important;
+}
+[data-testid="stTabs"] [role="tab"]:focus,
+[data-testid="stTabs"] [role="tab"]:focus-visible,
+[data-testid="stTabs"] button[data-baseweb="tab"]:focus,
+[data-testid="stTabs"] button[data-baseweb="tab"]:focus-visible {
+    outline: none !important;
+}
+[data-testid="stTabs"] [role="tab"]:focus-visible,
+[data-testid="stTabs"] button[data-baseweb="tab"]:focus-visible {
+    box-shadow: 0 0 0 2px #a8a29e !important;
+}
+[data-testid="stTabs"] [data-baseweb="tab-highlight"] {
+    background: #57534e !important;
+}
+
+[data-testid="stButtonGroup"] > div {
+    background: #f0ebe3 !important;
+    border-color: #e8e0d6 !important;
+}
+[data-testid="stButtonGroup"] button {
+    color: #404040 !important;
+}
+[data-testid="stButtonGroup"] button[aria-pressed="true"] {
+    color: #000000 !important;
+    background: #ffffff !important;
+    border-color: #d4ccc0 !important;
+}
+[data-testid="stButtonGroup"] button:hover:not([aria-pressed="true"]) {
+    color: #000000 !important;
+    background: #ebe6de !important;
+}
+
+[data-baseweb="select"] > div,
+[data-testid="stTextInput"] input,
+[data-testid="stDateInput"] input {
+    background: #ffffff !important;
+    border-color: #d4ccc0 !important;
+    color: #0a0a0a !important;
+}
+[data-baseweb="select"] * {
+    color: #0a0a0a !important;
+}
+[data-testid="stSelectbox"] label,
+[data-testid="stMultiSelect"] label {
+    color: #262626 !important;
+}
+
+[data-testid="stFileUploaderDropzone"] {
+    background: #faf8f5 !important;
+    border-color: #cfc6b8 !important;
+}
+[data-testid="stFileUploaderDropzoneInstructions"] span:first-child,
+[data-testid="stFileUploaderDropzoneInstructions"] small {
+    color: #262626 !important;
+}
+[data-testid="stFileUploaderDropzone"] svg {
+    color: #404040 !important;
+}
+/* Light theme: same button system as dark (primary = light fill; secondary/download = outline) */
+[data-testid="stButton"] > button[kind="primary"]:not(:disabled):not([disabled]):not([aria-disabled="true"]) {
+    background: #f0f0f0 !important;
+    color: #0a0a0a !important;
+    border: 1px solid #d4d4d4 !important;
+    opacity: 1 !important;
+    -webkit-text-fill-color: #0a0a0a !important;
+}
+[data-testid="stButton"] > button[kind="primary"]:not(:disabled):not([disabled]):not([aria-disabled="true"]) * {
+    color: #0a0a0a !important;
+    -webkit-text-fill-color: #0a0a0a !important;
+}
+[data-testid="stButton"] > button[kind="primary"]:not(:disabled):not([disabled]):not([aria-disabled="true"]):hover {
+    background: #ffffff !important;
+    border-color: #e5e5e5 !important;
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
+}
+[data-testid="stButton"] > button[kind="primary"]:not(:disabled):not([disabled]):not([aria-disabled="true"]):hover * {
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
+}
+[data-testid="stButton"] > button[kind="primary"]:not(:disabled):not([disabled]):not([aria-disabled="true"]):focus-visible {
+    box-shadow: 0 0 0 2px #a8a29e !important;
+}
+[data-testid="stButton"] > button[kind="primary"]:disabled,
+[data-testid="stButton"] > button[kind="primary"][disabled],
+[data-testid="stButton"] > button[kind="primary"][aria-disabled="true"] {
+    background: #e7e5e4 !important;
+    color: #78716c !important;
+    border-color: #d6d3d1 !important;
+    opacity: 1 !important;
+    -webkit-text-fill-color: #78716c !important;
+}
+[data-testid="stButton"] > button[kind="primary"]:disabled *,
+[data-testid="stButton"] > button[kind="primary"][disabled] *,
+[data-testid="stButton"] > button[kind="primary"][aria-disabled="true"] * {
+    color: #78716c !important;
+    -webkit-text-fill-color: #78716c !important;
+}
+
+[data-testid="stButton"] > button[kind="secondary"],
+[data-testid="stDownloadButton"] > button {
+    background: #ffffff !important;
+    color: #0a0a0a !important;
+    border: 1px solid #d4ccc0 !important;
+    -webkit-text-fill-color: #0a0a0a !important;
+}
+[data-testid="stButton"] > button[kind="secondary"] *,
+[data-testid="stDownloadButton"] > button * {
+    color: #0a0a0a !important;
+    -webkit-text-fill-color: #0a0a0a !important;
+}
+[data-testid="stButton"] > button[kind="secondary"]:hover,
+[data-testid="stDownloadButton"] > button:hover {
+    background: #f0ebe3 !important;
+    border-color: #a8a29e !important;
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
+}
+[data-testid="stButton"] > button[kind="secondary"]:hover *,
+[data-testid="stDownloadButton"] > button:hover * {
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
+}
+[data-testid="stButton"] > button[kind="secondary"]:focus-visible,
+[data-testid="stDownloadButton"] > button:focus-visible {
+    box-shadow: 0 0 0 2px #d4ccc0 !important;
+}
+
+[data-testid="stFileUploaderDropzone"] button {
+    background: #f0f0f0 !important;
+    color: #0a0a0a !important;
+    border: 1px solid #d4d4d4 !important;
+    -webkit-text-fill-color: #0a0a0a !important;
+}
+[data-testid="stFileUploaderDropzone"] button:hover {
+    background: #ffffff !important;
+    border-color: #e5e5e5 !important;
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
+}
+
+[data-testid="stDataFrame"] {
+    border: 1px solid #e8e0d6 !important;
+    border-radius: 10px !important;
+}
+
+.vega-embed details,
+.vega-embed.has-actions details,
+.vega-embed details[open],
+.vega-embed.has-actions details[open],
+.vega-embed details summary,
+.vega-embed.has-actions details > summary,
+.vega-embed .vega-actions,
+.vega-embed.has-actions .vega-actions {
+    background: #ffffff !important;
+    color: #111111 !important;
+    border: 1px solid #d4ccc0 !important;
+    box-shadow: 0 8px 22px rgba(0,0,0,0.12) !important;
+}
+.vega-embed details summary,
+.vega-embed.has-actions details > summary {
+    border-radius: 10px !important;
+}
+.vega-embed details summary:hover,
+.vega-embed details summary:focus,
+.vega-embed details summary:focus-visible,
+.vega-embed.has-actions details > summary:hover,
+.vega-embed.has-actions details > summary:focus,
+.vega-embed.has-actions details > summary:focus-visible {
+    background: #f2eee8 !important;
+    color: #111111 !important;
+    outline: 2px solid #d4ccc0 !important;
+}
+.vega-embed details summary::marker,
+.vega-embed.has-actions details > summary::marker {
+    color: #111111 !important;
+}
+.vega-embed details summary svg,
+.vega-embed.has-actions details > summary svg,
+.vega-embed .vega-actions svg,
+.vega-embed.has-actions .vega-actions svg {
+    color: #111111 !important;
+    fill: #111111 !important;
+    stroke: #111111 !important;
+}
+.vega-embed .vega-actions a,
+.vega-embed.has-actions .vega-actions a {
+    color: #111111 !important;
+    background: #ffffff !important;
+}
+.vega-embed .vega-actions a:hover,
+.vega-embed.has-actions .vega-actions a:hover {
+    background: #f2eee8 !important;
+}
+/* Stronger light-mode overrides for Vega/Vega-Embed menus (covers nested lists, tooltips, and any generated menu nodes) */
+.vega-embed details[open] > *,
+.vega-embed .vega-actions-list,
+.vega-embed .vega-actions-list *,
+.vega-embed .vega-actions *,
+.vega-embed .vega-actions button,
+.vega-embed .vega-actions a,
+.vega-embed .vega-actions a *,
+.vega-embed .vega-actions summary,
+.vega-embed .vega-actions summary * {
+    background: #ffffff !important;
+    color: #111111 !important;
+    border-color: #d4ccc0 !important;
+}
+/* Some browsers render the menu as a popover or use role="menu" children */
+.vega-embed [role="menu"],
+.vega-embed [role="menu"] * {
+    background: #ffffff !important;
+    color: #111111 !important;
+}
+[data-baseweb="tooltip"],
+[data-baseweb="tooltip"] > div,
+div[role="tooltip"] {
+    background: #ffffff !important;
+    color: #111111 !important;
+    border: 1px solid #d4ccc0 !important;
+    box-shadow: 0 8px 22px rgba(0,0,0,0.12) !important;
+}
+[data-baseweb="tooltip"] *,
+div[role="tooltip"] * {
+    color: #111111 !important;
+    -webkit-text-fill-color: #111111 !important;
+}
+
+.results-nav-mark { background: #0a0a0a !important; }
+
+[data-testid="stMetric"] label { color: #525252 !important; }
+[data-testid="stMetric"] [data-testid="stMetricValue"] { color: #000000 !important; }
+
+[data-testid="stExpander"] summary { color: #0a0a0a !important; }
+
+/* Ensure the small rounded Vega toolbar buttons match light card background */
+.vega-embed .vega-actions,
+.vega-embed .vega-actions > summary,
+.vega-embed .vega-actions > summary *,
+.vega-embed .vega-actions button,
+.vega-embed .vega-actions div {
+    background: #ffffff !important;
+    color: #111111 !important;
+    border: 1px solid #d4ccc0 !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
+}
+.vega-embed .vega-actions > summary {
+    padding: 6px !important;
+    border-radius: 12px !important;
+}
+.vega-embed .vega-actions svg,
+.vega-embed .vega-actions a svg {
+    fill: #111111 !important;
+    stroke: #111111 !important;
+}
+
+/* Last-resort override: target any remaining wrappers or inline-styled nodes
+   inside the Vega embed toolbar that may be rendered by different Vega versions
+   or browser popovers. This block is intentionally very specific and placed at
+   the end of the stylesheet to beat other rules. */
+.main .vega-embed .vega-actions,
+.main .vega-embed .vega-actions *,
+.main .vega-embed details[open] > summary,
+.main .vega-embed details[open] > summary *,
+.main .vega-embed [role="toolbar"],
+.main .vega-embed [role="toolbar"] *,
+.main .vega-embed [role="menu"],
+.main .vega-embed [role="menu"] *,
+.main .vega-embed div[style*="background" i],
+.main .vega-embed div[style*="background-color" i],
+.main .vega-embed span[style*="background" i],
+.main .vega-embed span[style*="background-color" i] {
+    background: #ffffff !important;
+    color: #111111 !important;
+    border-color: #d4ccc0 !important;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.08) !important;
+    border-radius: 12px !important;
+}
+.main .vega-embed .vega-actions::before,
+.main .vega-embed .vega-actions::after,
+.main .vega-embed details summary::before,
+.main .vega-embed details summary::after {
+    background: transparent !important;
+}
+
+/* Vega embed chrome only (not Streamlit chart toolbar icons) */
+.vega-embed .vega-actions,
+.vega-embed .vega-actions *,
+.vega-embed details,
+.vega-embed details summary {
+    color: #111111 !important;
+    -webkit-text-fill-color: #111111 !important;
+}
+.vega-embed svg,
+.vega-embed img {
+    filter: none !important;
+}
+.vega-embed [style*="filter" i] {
+    filter: none !important;
+}
+
+/* If the browser is applying a forced-dark mode, this helps preserve intended light visuals for the embed */
+html, body, .stApp, .main {
+    color-scheme: light !important;
+}
+
+
+
+
+.kpi-positive { color: #15803d !important; }
+.kpi-negative { color: #b91c1c !important; }
+
+[data-testid="stAlert"] { background-color: #faf8f5 !important; color: #0a0a0a !important; border-color: #e8e0d6 !important; }
+[data-testid="stAlert"] p, [data-testid="stAlert"] div { color: #111111 !important; }
+
+[data-testid="stCaption"],
+[data-testid="stWidgetLabel"] label,
+label[data-testid="stWidgetLabel"] {
+    color: #525252 !important;
+}
+[data-testid="stMarkdownContainer"] small { color: #57534e !important; }
+
+[data-testid="stSidebar"] [data-baseweb="radio"] label,
+[data-testid="stSidebar"] [data-baseweb="radio"] span {
+    color: #0a0a0a !important;
+}
+
+[data-testid="stNumberInput"] label { color: #262626 !important; }
+[data-testid="stNumberInput"] input {
+    background: #ffffff !important;
+    color: #0a0a0a !important;
+    border-color: #d4ccc0 !important;
+}
+
+[data-testid="stCheckbox"] label,
+[data-testid="stCheckbox"] span { color: #111111 !important; }
+[data-testid="stToggle"] label { color: #111111 !important; }
+
+[data-testid="stTabs"] [role="tabpanel"],
+[data-testid="stTabs"] [role="tabpanel"] p,
+[data-testid="stTabs"] [role="tabpanel"] label {
+    color: #111111 !important;
+}
+
+.main a, [data-testid="stMarkdownContainer"] a { color: #1d4ed8 !important; }
+
+[data-testid="stExpander"] [data-testid="stVerticalBlock"] p,
+[data-testid="stExpander"] [data-testid="stVerticalBlock"] span,
+[data-testid="stExpander"] [data-testid="stMarkdownContainer"] {
+    color: #111111 !important;
+}
+
+hr { border-color: #e8e0d6 !important; }
+
+/* Light theme: chart toolbar tray + fullscreen button */
+[data-testid="stElementToolbar"]:has(+ [data-testid="stVegaLiteChart"]) [data-testid="stElementToolbarButtonContainer"] {
+    background: #ffffff !important;
+    color: #0a0a0a !important;
+    border: 1px solid #d4ccc0 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+    padding: 0 !important;
+}
+[data-testid="stElementToolbar"]:has(+ [data-testid="stVegaLiteChart"]) [data-testid="stElementToolbarButton"],
+[data-testid="stElementToolbar"]:has(+ [data-testid="stVegaLiteChart"]) [data-testid="stElementToolbarButton"] button {
+    background: transparent !important;
+    color: #0a0a0a !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+[data-testid="stElementToolbar"]:has(+ [data-testid="stVegaLiteChart"]) [data-testid="stElementToolbarButtonContainer"]:hover {
+    background: #f0ebe3 !important;
+    border-color: #a8a29e !important;
+}
+[data-testid="stElementToolbar"]:has(+ [data-testid="stVegaLiteChart"]) [data-testid="stElementToolbarButton"] button:hover {
+    background: transparent !important;
+    border: none !important;
+    color: #000000 !important;
+}
+
+/* Ensure hero / results header text and controls are high-contrast in light theme */
+.main .hero, .stApp .hero, .block-container .hero,
+.main .results-nav, .results-nav {
+    background: #faf8f5 !important;
+    border-color: #e8e0d6 !important;
+    color: #0b0b0b !important;
+}
+.main .hero .hero-title, .hero .hero-title, .block-container .hero .hero-title,
+.main .results-nav .results-nav-title, .results-nav .results-nav-title {
+    color: #0b0b0b !important;
+    -webkit-text-fill-color: #0b0b0b !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+    filter: none !important;
+    -webkit-text-stroke: 0 !important;
+}
+.main .hero .hero-sub, .hero .hero-sub, .hero .hero-meta,
+.main .results-nav .results-nav-file, .results-nav .results-nav-file {
+            color: #4b4b4b !important;
+            opacity: 1 !important;
+            text-shadow: none !important;
+        }
+
+/* Final forced fallbacks for any remaining inline-styled or injected nodes */
+.main .hero *[style],
+.main .hero [style*="color" i],
+.main .hero [style*="-webkit-text-fill-color" i],
+.main .results-nav *[style],
+.main .results-nav [style*="color" i],
+.main .results-nav [style*="-webkit-text-fill-color" i] {
+    color: #0b0b0b !important;
+    -webkit-text-fill-color: #0b0b0b !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+}
+</style>

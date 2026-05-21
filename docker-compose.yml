@@ -77,8 +77,8 @@ services:
     ports:
       - "${STREAMLIT_HOST_PORT:-8501}:8501"
     volumes:
-      # Live code (image only COPYs a snapshot at build time)
-      - ./frontend/streamlit3.py:/app/streamlit3.py
+      # Live code (image COPYs frontend/ at build time)
+      - ./frontend:/app
     depends_on:
       backend:
         condition: service_healthy

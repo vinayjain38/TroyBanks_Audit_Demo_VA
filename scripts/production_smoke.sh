@@ -14,7 +14,7 @@ if ! python3 -m pytest tests/ -q --tb=short; then
   exit 1
 fi
 
-echo "== frontend/streamlit3.py syntax =="
-python3 -c "import ast; ast.parse(open('frontend/streamlit3.py', encoding='utf-8').read())"
+echo "== frontend package syntax =="
+python3 -m compileall -q frontend
 
 echo "OK — smoke checks passed."

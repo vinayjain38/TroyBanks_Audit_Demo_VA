@@ -1,0 +1,43 @@
+:root { color-scheme: light !important; }
+html body div[data-baseweb="popover"],
+html body div[data-baseweb="popover"] > div,
+html body div[data-baseweb="popover"] > div > div,
+html body ul[data-baseweb="menu"],
+html body ul[data-baseweb="menu"] > div,
+html body div[data-baseweb="popover"] ul,
+html body div[data-baseweb="popover"] li,
+html body div[data-baseweb="popover"] [role="listbox"],
+html body div[data-baseweb="popover"] [role="presentation"],
+html body div[data-baseweb="popover"] [role="option"],
+html body div[data-baseweb="popover"] [aria-disabled="true"],
+html body div[data-baseweb="popover"] [class*="st-emotion-cache"],
+html body ul[data-baseweb="menu"] [class*="st-emotion-cache"] {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    color: #0a0a0a !important;
+    -webkit-text-fill-color: #0a0a0a !important;
+    border-color: #d4ccc0 !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1) !important;
+}
+html body div[data-baseweb="popover"] li:hover,
+html body div[data-baseweb="popover"] [role="option"]:hover,
+html body ul[data-baseweb="menu"] li:hover {
+    background-color: #f0ebe3 !important;
+    color: #0a0a0a !important;
+}
+html body div[data-baseweb="popover"] span,
+html body div[data-baseweb="popover"] p {
+    color: #0a0a0a !important;
+    -webkit-text-fill-color: #0a0a0a !important;
+}
+[data-testid="stMultiSelect"] [data-baseweb="select"] > div {
+    background-color: #ffffff !important;
+    border: 1px solid #d4ccc0 !important;
+    color: #0a0a0a !important;
+}
+[data-testid="stMultiSelect"] [data-baseweb="select"] input {
+    background-color: transparent !important;
+    color: #0a0a0a !important;
+    -webkit-text-fill-color: #0a0a0a !important;
+}
+"""
