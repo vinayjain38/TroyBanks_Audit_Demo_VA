@@ -76,16 +76,16 @@ LINE_GROUP_PX = 20
 # -------------------------------------------------
 def render_page_to_image(pdf_path: str, page_index: int, dpi: int = 300):
     doc = fitz.open(pdf_path)
-    if page_index < 0 or page_index >= len(doc):
-        raise IndexError(f"PDF has {len(doc)} pages, got {page_index}")
-    page = doc[page_index]
-    zoom = dpi / 72.0
-    mat = fitz.Matrix(zoom, zoom)
-    pix = page.get_pixmap(matrix=mat)
-    img_bytes = pix.tobytes("png")
-    img = Image.open(io.BytesIO(img_bytes))
-    doc.close()
-    return img
+    try:
+        if page_index < 0 or page_index >= len(doc):
+            raise IndexError(f"PDF has {len(doc)} pages, got {page_index}")
+        page = doc[page_index]
+        zoom = dpi / 72.0
+        mat = fitz.Matrix(zoom, zoom)
+        pix = page.get_pixmap(matrix=mat, colorspace=fitz.csRGB, alpha=False)
+        return Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
+    finally:
+        doc.close()
 
 def is_month_token(text: str) -> bool:
     return text.upper() in MONTHS_ORDER
@@ -123,7 +123,8 @@ def extract_usage_table_by_coords(pdf_path: str,
                                   page_index: int,
                                   dpi: int = 300,
                                   prev_month_centers: dict | None = None,
-                                  prev_year: str | None = None) -> tuple:
+                                  prev_year: str | None = None,
+                                  tesseract_config: str = "") -> tuple:
     """
     Extract one 'Historical Electricity Usage - YYYY' table from a page,
     using x-coordinates to map values to month columns.
@@ -132,7 +133,10 @@ def extract_usage_table_by_coords(pdf_path: str,
              and the year. This allows the next page to inherit month centers if needed.
     """
     img = render_page_to_image(pdf_path, page_index, dpi)
-    data = pytesseract.image_to_data(img, output_type=Output.DATAFRAME)
+    kwargs = {"output_type": Output.DATAFRAME}
+    if tesseract_config:
+        kwargs["config"] = tesseract_config
+    data = pytesseract.image_to_data(img, **kwargs)
 
     # basic clean-up
     data = data[(data.conf.astype(float) > 0) & data.text.notna()]
@@ -402,7 +406,13 @@ def extract_usage_table_by_coords(pdf_path: str,
 # -------------------------------------------------
 # Driver: run for ALL pages
 # -------------------------------------------------
-def extract_all_usage_tables(pdf_path: str, dpi: int = 300) -> pd.DataFrame:
+def extract_all_usage_tables(
+    pdf_path: str,
+    dpi: int = 300,
+    start_page_index: int = 0,
+    end_page_index: int | None = None,
+    tesseract_config: str = "",
+) -> pd.DataFrame:
     doc = fitz.open(pdf_path)
     n_pages = len(doc)
     doc.close()
@@ -410,14 +420,17 @@ def extract_all_usage_tables(pdf_path: str, dpi: int = 300) -> pd.DataFrame:
     dfs = []
     prev_month_centers = None
     prev_year = None
+    start_page_index = max(0, int(start_page_index or 0))
+    end_page_index = n_pages if end_page_index is None else min(n_pages, int(end_page_index))
 
-    for pidx in range(n_pages):
+    for pidx in range(start_page_index, end_page_index):
         df_page, month_centers, year = extract_usage_table_by_coords(
             pdf_path,
             page_index=pidx,
             dpi=dpi,
             prev_month_centers=prev_month_centers,
             prev_year=prev_year,
+            tesseract_config=tesseract_config,
         )
         if not df_page.empty:
             dfs.append(df_page)
@@ -427,6 +440,14 @@ def extract_all_usage_tables(pdf_path: str, dpi: int = 300) -> pd.DataFrame:
 
     if dfs:
         return pd.concat(dfs, ignore_index=True)
+    if start_page_index > 0:
+        return extract_all_usage_tables(
+            pdf_path,
+            dpi=dpi,
+            start_page_index=0,
+            end_page_index=start_page_index,
+            tesseract_config=tesseract_config,
+        )
     return pd.DataFrame()
 
 

@@ -127,12 +127,12 @@ Five schedule calculation functions:
 - `ve{X00}_case_type` — Whether schedule matches current rate
 - Parameter columns (customer charge, dist rate, ES rates, riders)
 
-### 4. **Interactive Dashboard (streamlit.py)**
+### 4. **Interactive Dashboard**
 - Browse 12-month account history
 - Compare current vs. proposed schedules
 - View calculated vs. actual charges
 - Export comparison to Excel
-- **Run:** `streamlit run src/Web_UI/streamlit.py`
+- **Run:** `streamlit run frontend/streamlit3.py` for the current Docker/production UI, or `streamlit run src/Web_UI/streamlit.py` for the older local-only UI.
 
 ### 5. **Rider Management (riders_table_new.py)**
 - Parses surcharge/rider rate tables
@@ -204,9 +204,11 @@ python src/Billing\ Engine/app_new.py
 
 ### 3. View Results
 ```bash
-streamlit run src/Web_UI/streamlit.py
+streamlit run frontend/streamlit3.py
 ```
 Opens interactive dashboard at `http://localhost:8501`
+
+> For the older local-only UI, use `streamlit run src/Web_UI/streamlit.py` instead.
 
 ---
 
@@ -324,7 +326,8 @@ See `FILE_GUIDE.md` for detailed documentation of:
 | [src/va_step2_anomalies.py](src/va_step2_anomalies.py) | Add YoY analysis, anomaly detection, 12-month summaries |
 | [src/new-bills-profile.py](src/new-bills-profile.py) | Additional billing profile analysis |
 | [src/Billing Engine/app_new.py](src/Billing\ Engine/app_new.py) | Calculate charges for 5 schedules, compare vs. current, compute savings |
-| [src/Web_UI/streamlit.py](src/Web_UI/streamlit.py) | Interactive dashboard: browse accounts, compare schedules, export |
+| [frontend/streamlit3.py](frontend/streamlit3.py) | Current Streamlit dashboard for the Docker/backend split stack |
+| [src/Web_UI/streamlit.py](src/Web_UI/streamlit.py) | Older local-only dashboard (legacy) |
 | [src/riders_table_new.py](src/riders_table_new.py) | Parse rider rates, normalize money formats |
 | [src/Utils/paths.py](src/Utils/paths.py) | Centralized configuration and file paths |
 
@@ -367,7 +370,8 @@ All parameters (customer charge, dist rate, ES rates, riders) extracted from Exc
 - Check Category, Sub-Category, Item, Condition/Tier values
 
 ### Streamlit not loading
-- Run: `streamlit run src/Web_UI/streamlit.py` from project root
+- Run: `streamlit run frontend/streamlit3.py` from project root
+- If you need the older local-only UI, use `streamlit run src/Web_UI/streamlit.py` instead
 - Check output path exists: `data/export/usage_savings_output.xlsx`
 
 ---

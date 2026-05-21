@@ -1,5 +1,9 @@
 # riders_table.py
 """
+Legacy rider-table extraction script.
+This file is a legacy parser and is not part of the current versioned rider upload pipeline.
+Use `src/Utils/upload.py` and `backend/routes/tariffs.py` for current tariff/rider upload handling.
+
 Extracts VEPGA Rider tables from the official tariff PDF using Camelot,
 cleans header rows, and exports RAW + CLEAN tables.
 

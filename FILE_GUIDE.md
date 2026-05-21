@@ -25,14 +25,20 @@ A Streamlit-based electricity tariff billing comparison tool for Virginia Beach 
 - **Output:** DataFrame columns per schedule: `ve{X00}_calculated_amount`, `ve{X00}_savings`, `ve{X00}_case_type`, plus parameter columns
 - **Note:** Writes OUTPUT_PATH (usage_savings_output.xlsx) after each schedule; file is overwritten (not appended)
 
-### **src/streamlit.py**
-**Purpose:** Web UI for browsing and comparing billing
+### **src/Web_UI/streamlit.py**
+**Purpose:** Older local-only Web UI for browsing and comparing billing
 - Streamlit app that displays last 12 months of usage data
 - Allows user to select account and rate schedule
 - Tab 1: Shows account details with historical billing
 - Tab 2: Compares current charges vs. selected schedule charges
 - Excel export feature: Downloads 12-month comparison
-- **Entry point:** `streamlit run src/streamlit.py`
+- **Entry point:** `streamlit run src/Web_UI/streamlit.py`
+
+### **frontend/streamlit3.py**
+**Purpose:** Current Streamlit UI used by the Docker/backend split-stack
+- Frontend app that talks to the backend API for calculation and upload workflows
+- Preferred production path for Docker deployments
+- **Entry point:** `streamlit run frontend/streamlit3.py`
 
 ### **src/riders_table_new.py**
 **Purpose:** Parse and prepare rider (surcharge) data

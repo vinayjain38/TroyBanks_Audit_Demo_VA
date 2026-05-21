@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 from pathlib import Path
@@ -5,10 +6,13 @@ import numpy as np
 import pandas as pd
 from dateutil.relativedelta import relativedelta
 
+logger = logging.getLogger(__name__)
+
 try:
     from Utils import database
     get_engine = getattr(database, "get_engine", None)
-except Exception: 
+except (ImportError, ModuleNotFoundError) as exc:
+    logger.debug("Could not import Utils.database: %s", exc)
     database = None
     get_engine = None
 
@@ -122,16 +126,22 @@ def process_troybanks_audit_data(df, pct_spike_limit=0.50, abs_spike_limit=5.0):
 # Helper Functions
 # -------------------------------------------------------------
 def parse_yyyymmdd(x):
-    if pd.isna(x): return pd.NaT
+    if pd.isna(x):
+        return pd.NaT
     try:
         if isinstance(x, (int, float)) and 20000 <= float(x) <= 60000:
             return pd.to_datetime(float(x), unit="D", origin="1899-12-30", errors="coerce")
-    except Exception: pass
-    if isinstance(x, (pd.Timestamp, np.datetime64)): return pd.to_datetime(x, errors="coerce")
+    except (TypeError, ValueError) as exc:
+        logger.warning("parse_yyyymmdd failed on numeric input %r: %s", x, exc)
+        return pd.NaT
+    if isinstance(x, (pd.Timestamp, np.datetime64)):
+        return pd.to_datetime(x, errors="coerce")
     s = str(x).strip()
-    if not s: return pd.NaT
+    if not s:
+        return pd.NaT
     dt = pd.to_datetime(s, format="%Y%m%d", errors="coerce")
-    if pd.isna(dt): dt = pd.to_datetime(s, errors="coerce")
+    if pd.isna(dt):
+        dt = pd.to_datetime(s, errors="coerce")
     return dt
 
 def safe_to_numeric(x):
@@ -147,14 +157,17 @@ def safe_to_numeric(x):
 
 def get_db_engine():
     if get_engine is not None:
-        try: return get_engine()
-        except Exception: pass
+        try:
+            return get_engine()
+        except Exception as exc:
+            logger.warning("get_engine() failed: %s", exc)
     try:
         from src.config import DB_URL
         url = DB_URL
-    except Exception:
+    except (ImportError, ModuleNotFoundError):
         url = os.environ.get("DATABASE_URL")
-    if not url: raise RuntimeError("No DB engine available and DB_URL not set")
+    if not url:
+        raise RuntimeError("No DB engine available and DB_URL not set")
     return sqlalchemy.create_engine(url)
 
 def load_usage_table(cols):
@@ -166,8 +179,11 @@ def load_usage_table(cols):
 def get_table_columns(table_name):
     engine = get_db_engine()
     insp = sqlalchemy.inspect(engine)
-    try: return [c["name"] for c in insp.get_columns(table_name)]
-    except Exception: return []
+    try:
+        return [c["name"] for c in insp.get_columns(table_name)]
+    except sqlalchemy.exc.SQLAlchemyError as exc:
+        logger.warning("Unable to inspect table %s: %s", table_name, exc)
+        return []
 
 # -------------------------------------------------------------
 # Main Execution
@@ -315,8 +331,8 @@ def main():
             try:
                 if series.dt.tz is not None:
                     return series.dt.tz_convert(None)
-            except Exception:
-                pass
+            except (TypeError, AttributeError) as exc:
+                logger.debug("_ensure_naive could not convert series: %s", exc)
             return series
 
         for _dt_col in ("uploaded_at", "bill_period_end"):

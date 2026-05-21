@@ -1,3 +1,9 @@
+"""
+Legacy local UI stub.
+This file is a legacy Streamlit example and is not part of the current backend + frontend calculation pipeline.
+Use `frontend/streamlit3.py` for the current Docker/production UI, or `src/Web_UI/streamlit.py` for older local-only exploration.
+"""
+
 import streamlit as st
 import pandas as pd
 from pathlib import Path

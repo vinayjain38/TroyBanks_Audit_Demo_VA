@@ -105,11 +105,8 @@ def ocr_pdf_page(pdf_path, page_index: int, dpi: int = 400) -> str:
         # Render image
         zoom = dpi / 72.0
         mat = fitz.Matrix(zoom, zoom)
-        pix = page.get_pixmap(matrix=mat)
-
-        # PyMuPDF → PIL
-        img_bytes = pix.tobytes("png")
-        img = Image.open(io.BytesIO(img_bytes))
+        pix = page.get_pixmap(matrix=mat, colorspace=fitz.csRGB, alpha=False)
+        img = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
 
         # OCR
         text = pytesseract.image_to_string(img)

@@ -83,6 +83,13 @@ def fetch_uploaded_bill_options() -> pd.DataFrame:
         else pd.Series([""] * len(raw), index=raw.index)
     )
 
+    if "uploaded_at" in raw.columns:
+        uploaded_at = pd.to_datetime(raw["uploaded_at"], format="mixed", errors="coerce")
+        if getattr(uploaded_at.dtype, "tz", None) is not None:
+            uploaded_at = uploaded_at.dt.tz_localize(None)
+    else:
+        uploaded_at = pd.Series([pd.NaT] * len(raw), index=raw.index)
+
     grouped = pd.DataFrame(
         {
             "batch_id": batch_col,
@@ -90,19 +97,18 @@ def fetch_uploaded_bill_options() -> pd.DataFrame:
             "account_number": raw["accountNumber"].astype(str).str.strip(),
             "customer_name": customer.astype(str).replace("", "Unknown Customer"),
             "bill_year": bill_year,
-            "uploaded_at": pd.to_datetime(raw["uploaded_at"], errors="coerce")
-            if "uploaded_at" in raw.columns
-            else pd.NaT,
+            "uploaded_at": uploaded_at,
         }
     )
     grouped["row_count"] = 1
     grouped = (
         grouped.groupby(
-            ["batch_id", "source_pdf", "account_number", "customer_name", "bill_year", "uploaded_at"],
+            ["batch_id", "source_pdf", "account_number", "customer_name", "bill_year"],
             as_index=False,
-        )["row_count"]
-        .sum()
-        .sort_values(["uploaded_at", "account_number", "bill_year"], ascending=[False, True, True])
+            dropna=False,
+        )
+        .agg(uploaded_at=("uploaded_at", "max"), row_count=("row_count", "sum"))
+        .sort_values(["uploaded_at", "account_number", "bill_year"], ascending=[False, True, True], na_position="last")
         .reset_index(drop=True)
     )
     return grouped

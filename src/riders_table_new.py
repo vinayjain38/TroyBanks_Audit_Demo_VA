@@ -62,6 +62,7 @@
 # - Make the money-format decimal precision configurable.
 """
 
+import logging
 import re
 from pathlib import Path
 from typing import List, Tuple, Optional
@@ -69,6 +70,7 @@ import camelot
 import pandas as pd
 import sys
 
+logger = logging.getLogger(__name__)
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -169,7 +171,8 @@ def extract_rate_schedule_tables(pdf_path: Path) -> List[Tuple[int, pd.DataFrame
 
     try:
         stream = camelot.read_pdf(str(pdf_path), pages="all", flavor="stream", strip_text="\n")
-    except Exception:
+    except Exception as exc:
+        logger.warning("Camelot stream parse failed for %s: %s", pdf_path, exc)
         stream = []
 
     for t in stream:
@@ -184,7 +187,8 @@ def extract_rate_schedule_tables(pdf_path: Path) -> List[Tuple[int, pd.DataFrame
 
     try:
         lattice = camelot.read_pdf(str(pdf_path), pages="all", flavor="lattice", strip_text="\n")
-    except Exception:
+    except Exception as exc:
+        logger.warning("Camelot lattice parse failed for %s: %s", pdf_path, exc)
         lattice = []
 
     for t in lattice:
@@ -249,7 +253,8 @@ def _parse_amount_unit(cell: str) -> Tuple[Optional[float], Optional[str]]:
 
     try:
         amt = float(amt_str.replace(",", ""))
-    except Exception:
+    except ValueError:
+        logger.debug("Unable to parse rider amount %r", amt_str)
         return (None, None)
 
     return (amt, unit)

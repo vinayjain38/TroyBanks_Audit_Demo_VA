@@ -45,3 +45,27 @@ def test_load_usage_coalesces_subtotal_when_total_empty(mock_engine, mock_read_s
     )
     out2 = load_usage_from_db("5000", "2024")
     assert out2["charges"].iloc[0] == pytest.approx(3966.2)
+
+
+@patch("backend.db_usage.pd.read_sql")
+@patch("backend.db_usage.engine")
+def test_fetch_uploaded_bill_options_includes_rows_with_missing_uploaded_at(mock_engine, mock_read_sql):
+    mock_conn = MagicMock()
+    mock_engine.connect.return_value.__enter__.return_value = mock_conn
+    from backend.db_usage import fetch_uploaded_bill_options
+
+    mock_read_sql.return_value = pd.DataFrame(
+        {
+            "accountNumber": ["TEST", "009028500412", "009028500412"],
+            "accountName": ["Test Account", "County", "County"],
+            "year": [2024, 2023, 2024],
+            "batch_id": ["test-123", "batch-a", "batch-a"],
+            "source_pdf": ["", "Profile0412.pdf", "Profile0412.pdf"],
+            "uploaded_at": ["2024-01-01T00:00:00", pd.NA, pd.NA],
+        }
+    )
+    result = fetch_uploaded_bill_options()
+    assert not result.empty
+    assert set(result["account_number"]) == {"TEST", "009028500412"}
+    assert result[result["account_number"] == "009028500412"].shape[0] == 2
+    assert pd.isna(result.loc[result["account_number"] == "009028500412", "uploaded_at"]).all()

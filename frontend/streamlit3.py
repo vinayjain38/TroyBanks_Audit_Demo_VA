@@ -151,10 +151,115 @@ class _ScheduleFuncProxy:
 SCHEDULE_FUNCS = _ScheduleFuncProxy()
 
 
+# Baseweb menus render in a body portal; Streamlit emotion sheets often beat in-app <style> tags.
+_TB_DARK_BASEWEB_MENU_CSS = """
+[data-baseweb="popover"],
+[data-baseweb="popover"] > div,
+[data-baseweb="menu"],
+[data-baseweb="menu"] > div {
+    background-color: #141414 !important;
+    color: #f5f5f5 !important;
+    border-color: #404040 !important;
+}
+[data-baseweb="popover"] li,
+[data-baseweb="popover"] [role="option"],
+[data-baseweb="popover"] [role="listbox"],
+[data-baseweb="menu"] li,
+[data-baseweb="menu"] [role="option"],
+[data-baseweb="menu"] ul {
+    color: #f5f5f5 !important;
+    background-color: #141414 !important;
+}
+[data-baseweb="popover"] li:hover,
+[data-baseweb="popover"] [role="option"]:hover,
+[data-baseweb="menu"] li:hover,
+[data-baseweb="menu"] [role="option"]:hover {
+    background-color: #262626 !important;
+}
+[data-testid="stMultiSelect"] [data-baseweb="select"] > div {
+    background-color: #0a0a0a !important;
+    border-color: #404040 !important;
+    color: #f5f5f5 !important;
+}
+"""
+
+_TB_LIGHT_BASEWEB_MENU_CSS = """
+:root { color-scheme: light !important; }
+html body div[data-baseweb="popover"],
+html body div[data-baseweb="popover"] > div,
+html body div[data-baseweb="popover"] > div > div,
+html body ul[data-baseweb="menu"],
+html body ul[data-baseweb="menu"] > div,
+html body div[data-baseweb="popover"] ul,
+html body div[data-baseweb="popover"] li,
+html body div[data-baseweb="popover"] [role="listbox"],
+html body div[data-baseweb="popover"] [role="presentation"],
+html body div[data-baseweb="popover"] [role="option"],
+html body div[data-baseweb="popover"] [aria-disabled="true"],
+html body div[data-baseweb="popover"] [class*="st-emotion-cache"],
+html body ul[data-baseweb="menu"] [class*="st-emotion-cache"] {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    color: #0a0a0a !important;
+    -webkit-text-fill-color: #0a0a0a !important;
+    border-color: #d4ccc0 !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1) !important;
+}
+html body div[data-baseweb="popover"] li:hover,
+html body div[data-baseweb="popover"] [role="option"]:hover,
+html body ul[data-baseweb="menu"] li:hover {
+    background-color: #f0ebe3 !important;
+    color: #0a0a0a !important;
+}
+html body div[data-baseweb="popover"] span,
+html body div[data-baseweb="popover"] p {
+    color: #0a0a0a !important;
+    -webkit-text-fill-color: #0a0a0a !important;
+}
+[data-testid="stMultiSelect"] [data-baseweb="select"] > div {
+    background-color: #ffffff !important;
+    border: 1px solid #d4ccc0 !important;
+    color: #0a0a0a !important;
+}
+[data-testid="stMultiSelect"] [data-baseweb="select"] input {
+    background-color: transparent !important;
+    color: #0a0a0a !important;
+    -webkit-text-fill-color: #0a0a0a !important;
+}
+"""
+
+
+def _inject_baseweb_menu_css() -> None:
+    """Event-container styles load after Streamlit emotion theme (fixes dark 'No results' panel)."""
+    css = (
+        _TB_LIGHT_BASEWEB_MENU_CSS
+        if st.session_state.get("ui_theme") == "Light"
+        else ""
+    )
+    st.html(f"<style id='tb-baseweb-menus'>{css}</style>")
+
+
+def _select_persisted_tab(labels: list[str], session_key: str) -> str:
+    """Section picker that keeps the active tab across reruns (e.g. theme toggle)."""
+    if session_key not in st.session_state or st.session_state[session_key] not in labels:
+        st.session_state[session_key] = labels[0]
+    selected = st.segmented_control(
+        "Section",
+        options=labels,
+        default=st.session_state[session_key],
+        key=session_key,
+        label_visibility="collapsed",
+        width="stretch",
+    )
+    return selected if selected is not None else st.session_state[session_key]
+
 
 # ---------------------------------------------------
 # Page config & global CSS
 # ---------------------------------------------------
+if "ui_theme" not in st.session_state:
+    st.session_state["ui_theme"] = "Dark"
+
 st.set_page_config(page_title="Troy & Banks", layout="wide")
 
 st.markdown("""
@@ -270,17 +375,6 @@ section.main > div {
 }
 [data-testid="stFileUploaderDropzoneInstructions"] small {
     color: #a3a3a3 !important; font-size: 0.8rem !important;
-}
-[data-testid="stFileUploaderDropzone"] button {
-    background: #ffffff !important;
-    color: #000000 !important;
-    border: 1px solid #e5e5e5 !important;
-    border-radius: 8px !important;
-    font-weight: 600 !important;
-    margin-top: 0.4rem;
-}
-[data-testid="stFileUploaderDropzone"] button:hover {
-    background: #f0f0f0 !important;
 }
 
 .results-nav {
@@ -474,6 +568,42 @@ section.main > div {
     background: #d4d4d4 !important;
 }
 
+/* Persisted analysis sections (segmented control; survives theme toggle) */
+[data-testid="stButtonGroup"] {
+    width: 100% !important;
+    margin-bottom: 0.8rem !important;
+}
+[data-testid="stButtonGroup"] > div {
+    display: flex !important;
+    width: 100% !important;
+    gap: 0.2rem !important;
+    background: #0a0a0a !important;
+    border: 1px solid #333333 !important;
+    border-radius: 12px !important;
+    padding: 0.25rem !important;
+    box-shadow: none !important;
+}
+[data-testid="stButtonGroup"] button {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    font-size: 0.86rem !important;
+    font-weight: 600 !important;
+    color: #a3a3a3 !important;
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+}
+[data-testid="stButtonGroup"] button[aria-pressed="true"] {
+    color: #ffffff !important;
+    background: #262626 !important;
+    border-color: #525252 !important;
+}
+[data-testid="stButtonGroup"] button:hover:not([aria-pressed="true"]) {
+    color: #ffffff !important;
+    background: #171717 !important;
+}
+
 [data-testid="stSelectbox"] label,
 [data-testid="stMultiSelect"] label { color: #d4d4d4 !important; font-size: 0.8rem; }
 [data-baseweb="select"] > div {
@@ -495,39 +625,46 @@ section.main > div {
 }
 [data-testid="stDataFrame"] { border-radius: 10px; overflow: hidden; border: 1px solid #333333; }
 
-[data-testid="stDownloadButton"] > button {
-    background: #262626 !important;
-    color: #ffffff !important;
-    border: 1px solid #525252 !important;
-    border-radius: 8px !important;
-    font-weight: 600 !important;
-}
-[data-testid="stDownloadButton"] > button * {
-    color: #ffffff !important;
-}
-[data-testid="stDownloadButton"] > button:hover {
-    background: #333333 !important;
-    border-color: #737373 !important;
-}
-[data-testid="stDownloadButton"] > button:hover * {
-    color: #ffffff !important;
-}
-
-[data-testid="stButton"] > button[kind="secondary"] {
-    background: transparent !important;
-    color: #e5e5e5 !important;
-    border: 1px solid #404040 !important;
+/* Unified buttons (dark theme): shared shape; primary = filled light; secondary/download = outline */
+[data-testid="stButton"] > button,
+[data-testid="stDownloadButton"] > button,
+[data-testid="stFileUploaderDropzone"] button {
     border-radius: 8px !important;
     font-size: 0.82rem !important;
     font-weight: 600 !important;
     padding: 0.35rem 0.9rem !important;
-}
-[data-testid="stButton"] > button[kind="secondary"]:hover {
-    border-color: #737373 !important;
-    color: #ffffff !important;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
 }
 
-/* Primary: force dark label on light fill (Base Web can leave white text on pale gray) */
+[data-testid="stButton"] > button[kind="secondary"],
+[data-testid="stDownloadButton"] > button {
+    background: transparent !important;
+    color: #e5e5e5 !important;
+    border: 1px solid #404040 !important;
+    -webkit-text-fill-color: #e5e5e5 !important;
+}
+[data-testid="stButton"] > button[kind="secondary"] *,
+[data-testid="stDownloadButton"] > button * {
+    color: #e5e5e5 !important;
+    -webkit-text-fill-color: #e5e5e5 !important;
+}
+[data-testid="stButton"] > button[kind="secondary"]:hover,
+[data-testid="stDownloadButton"] > button:hover {
+    background: #141414 !important;
+    border-color: #737373 !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
+[data-testid="stButton"] > button[kind="secondary"]:hover *,
+[data-testid="stDownloadButton"] > button:hover * {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
+[data-testid="stButton"] > button[kind="secondary"]:focus-visible,
+[data-testid="stDownloadButton"] > button:focus-visible {
+    box-shadow: 0 0 0 2px #525252 !important;
+}
+
 [data-testid="stButton"] > button[kind="primary"]:not(:disabled):not([disabled]):not([aria-disabled="true"]) {
     background: #f0f0f0 !important;
     color: #0a0a0a !important;
@@ -543,6 +680,7 @@ section.main > div {
     background: #ffffff !important;
     border-color: #e5e5e5 !important;
     color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
 }
 [data-testid="stButton"] > button[kind="primary"]:not(:disabled):not([disabled]):not([aria-disabled="true"]):hover * {
     color: #000000 !important;
@@ -565,6 +703,25 @@ section.main > div {
 [data-testid="stButton"] > button[kind="primary"][aria-disabled="true"] * {
     color: #f5f5f5 !important;
     -webkit-text-fill-color: #f5f5f5 !important;
+}
+
+[data-testid="stFileUploaderDropzone"] button {
+    background: #f0f0f0 !important;
+    color: #0a0a0a !important;
+    border: 1px solid #d4d4d4 !important;
+    -webkit-text-fill-color: #0a0a0a !important;
+    margin-top: 0.4rem;
+}
+[data-testid="stFileUploaderDropzone"] button:hover {
+    background: #ffffff !important;
+    border-color: #e5e5e5 !important;
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
+}
+
+/* Sidebar nav uses default (secondary) buttons — same outline/fill rules as main */
+section[data-testid="stSidebar"] [data-testid="stButton"] > button[kind="secondary"] {
+    width: 100%;
 }
 
 hr { border-color: #333333 !important; }
@@ -632,34 +789,12 @@ label[data-testid="stWidgetLabel"] {
     color: #e8e8e8 !important;
 }
 
-[data-testid="stButton"] > button[kind="secondary"] * {
-    color: inherit !important;
-}
-[data-testid="stButton"] > button[kind="secondary"]:hover * {
-    color: #ffffff !important;
-}
-
 .main a, [data-testid="stMarkdownContainer"] a { color: #93c5fd !important; }
 
 [data-testid="stExpander"] [data-testid="stVerticalBlock"] p,
 [data-testid="stExpander"] [data-testid="stVerticalBlock"] span,
 [data-testid="stExpander"] [data-testid="stMarkdownContainer"] {
     color: #e8e8e8 !important;
-}
-
-/* Select / multiselect dropdown surface */
-[data-baseweb="popover"] {
-    background-color: #141414 !important;
-    border: 1px solid #404040 !important;
-}
-[data-baseweb="popover"] li,
-[data-baseweb="popover"] [role="option"] {
-    color: #f5f5f5 !important;
-    background-color: #141414 !important;
-}
-[data-baseweb="popover"] li:hover,
-[data-baseweb="popover"] [role="option"]:hover {
-    background-color: #262626 !important;
 }
 
 /* Multiselect tags — red chips (classic Past usage look) */
@@ -673,8 +808,86 @@ label[data-testid="stWidgetLabel"] {
     color: #ffffff !important;
 }
 
+/* Charts: hide Vega-Embed "..." menu; Streamlit toolbar provides Fullscreen */
+.vega-embed details,
+.vega-embed.has-actions details,
+.vega-embed .vega-actions,
+.vega-embed.has-actions .vega-actions {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    height: 0 !important;
+    width: 0 !important;
+    overflow: hidden !important;
+    opacity: 0 !important;
+}
+/* Chart toolbar: Streamlit native icons (do not override SVG). Fullscreen only. */
+[data-testid="stElementToolbar"]:has(+ [data-testid="stVegaLiteChart"]) {
+    opacity: 1 !important;
+    top: -2.65rem !important;
+    pointer-events: auto !important;
+    z-index: 20 !important;
+}
+[data-testid="stElementToolbar"]:has(+ [data-testid="stVegaLiteChart"]) [data-testid="stElementToolbarButton"]:has(button[aria-label="Show data"]),
+[data-testid="stElementToolbar"]:has(+ [data-testid="stVegaLiteChart"]) [data-testid="stElementToolbarButton"]:has(button[aria-label="Show chart"]) {
+    display: none !important;
+}
+/* Dark theme: chart toolbar tray + fullscreen button (single border on tray only) */
+[data-testid="stElementToolbar"]:has(+ [data-testid="stVegaLiteChart"]) [data-testid="stElementToolbarButtonContainer"] {
+    background: #262626 !important;
+    color: #e5e5e5 !important;
+    border: 1px solid #525252 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35) !important;
+    padding: 0 !important;
+}
+[data-testid="stElementToolbar"]:has(+ [data-testid="stVegaLiteChart"]) [data-testid="stElementToolbarButton"],
+[data-testid="stElementToolbar"]:has(+ [data-testid="stVegaLiteChart"]) [data-testid="stElementToolbarButton"] button {
+    background: transparent !important;
+    color: #e5e5e5 !important;
+    border: none !important;
+    outline: none !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+}
+[data-testid="stElementToolbar"]:has(+ [data-testid="stVegaLiteChart"]) [data-testid="stElementToolbarButtonContainer"]:hover {
+    background: #333333 !important;
+    border-color: #737373 !important;
+}
+[data-testid="stElementToolbar"]:has(+ [data-testid="stVegaLiteChart"]) [data-testid="stElementToolbarButton"] button:hover {
+    background: transparent !important;
+    border: none !important;
+    color: #ffffff !important;
+}
+[data-testid="stElementToolbar"]:has(+ [data-testid="stVegaLiteChart"]) [data-testid="stElementToolbarButton"] button,
+[data-testid="stElementToolbar"]:has(+ [data-testid="stVegaLiteChart"]) [data-testid="stElementToolbarButtonIcon"],
+[data-testid="stElementToolbar"]:has(+ [data-testid="stVegaLiteChart"]) [data-testid="stElementToolbarButtonIcon"] svg,
+[data-testid="stElementToolbar"]:has(+ [data-testid="stVegaLiteChart"]) [data-testid="stElementToolbarButtonIcon"] svg * {
+    -webkit-text-fill-color: unset !important;
+}
+[data-testid="stElementToolbar"]:has(+ [data-testid="stVegaLiteChart"]) [data-testid="stElementToolbarButtonIcon"] svg {
+    display: block !important;
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+}
+[data-testid="stElementToolbar"]:has(+ [data-testid="stVegaLiteChart"]) [data-testid="stElementToolbarButtonIcon"] svg path {
+    fill: none !important;
+    stroke: currentColor !important;
+    vector-effect: non-scaling-stroke;
+}
+[data-testid="stElementToolbar"]:has(+ [data-testid="stVegaLiteChart"]) [data-testid="stElementToolbarButtonIcon"] svg rect {
+    fill: none !important;
+    stroke: none !important;
+}
+
 </style>
 """, unsafe_allow_html=True)
+
+if st.session_state.get("ui_theme") == "Dark":
+    st.markdown(
+        f"<style id='tb-dark-baseweb-menus'>{_TB_DARK_BASEWEB_MENU_CSS}</style>",
+        unsafe_allow_html=True,
+    )
 
 # ---------------------------------------------------
 # Pipeline helpers
@@ -708,7 +921,140 @@ def _st_dataframe(df: pd.DataFrame, **kwargs) -> None:
     """``st.dataframe`` wrapper: older Streamlit builds omit ``key`` on dataframes."""
     if not _DATAFRAME_SUPPORTS_KEY:
         kwargs.pop("key", None)
-    st.dataframe(df, **kwargs)
+    if st.session_state.get("ui_theme") == "Light" and isinstance(df, pd.DataFrame):
+        _render_light_table(df)
+        return
+    if isinstance(df, pd.DataFrame):
+        colors = theme_palette()
+        styled = (
+            df.style
+            .set_properties(
+                **{
+                    "background-color": colors["table_bg"],
+                    "color": colors["table_text"],
+                    "border-color": colors["table_border"],
+                }
+            )
+            .set_table_styles(
+                [
+                    {
+                        "selector": "th",
+                        "props": [
+                            ("background-color", colors["table_header_bg"]),
+                            ("color", colors["table_text"]),
+                            ("border-color", colors["table_border"]),
+                        ],
+                    }
+                ]
+            )
+        )
+        st.dataframe(styled, **kwargs)
+    else:
+        st.dataframe(df, **kwargs)
+
+
+def _format_table_value(value) -> str:
+    if value is None or pd.isna(value):
+        return ""
+    if isinstance(value, pd.Timestamp):
+        return value.strftime("%Y-%m-%d")
+    if isinstance(value, (float, np.floating)):
+        return f"{float(value):,.2f}"
+    if isinstance(value, (int, np.integer)):
+        return f"{int(value):,}"
+    return str(value)
+
+
+def _render_light_table(df: pd.DataFrame) -> None:
+    colors = theme_palette()
+    d = df.copy()
+    max_rows = 500
+    clipped = len(d) > max_rows
+    if clipped:
+        d = d.head(max_rows)
+    table_id = f"tb_{abs(hash(tuple(map(str, d.columns))))}_{len(d)}"
+    header = "".join(f"<th>{str(col)}</th>" for col in d.columns)
+    rows = []
+    for _, row in d.iterrows():
+        cells = "".join(f"<td>{_format_table_value(row[col])}</td>" for col in d.columns)
+        rows.append(f"<tr>{cells}</tr>")
+    html = f"""
+<style>
+#{table_id}_wrap {{
+  max-height: 460px;
+  overflow: auto;
+  border: 1px solid {colors["table_border"]};
+  border-radius: 10px;
+  background: {colors["table_bg"]};
+}}
+#{table_id} {{
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}}
+#{table_id} th {{
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: {colors["table_header_bg"]};
+  color: {colors["table_text"]};
+  border: 1px solid {colors["table_border"]};
+  padding: 0.65rem 0.75rem;
+  text-align: left;
+  font-weight: 700;
+}}
+#{table_id} td {{
+  background: {colors["table_bg"]};
+  color: {colors["table_text"]};
+  border: 1px solid {colors["table_border"]};
+  padding: 0.58rem 0.75rem;
+}}
+#{table_id} tr:nth-child(even) td {{
+  background: {colors["table_alt_bg"]};
+}}
+</style>
+<div id="{table_id}_wrap">
+  <table id="{table_id}">
+    <thead><tr>{header}</tr></thead>
+    <tbody>{''.join(rows)}</tbody>
+  </table>
+</div>
+"""
+    st.markdown(html, unsafe_allow_html=True)
+    if clipped:
+        st.caption(f"Showing first {max_rows:,} rows.")
+
+
+def theme_palette() -> dict:
+    if st.session_state.get("ui_theme") == "Light":
+        return {
+            "chart_bg": "#faf8f5",
+            "chart_stroke": "#d4ccc0",
+            "axis_label": "#525252",
+            "axis_title": "#111111",
+            "grid": "#ded6cc",
+            "usage_color": "#2563eb",
+            "charge_color": "#475569",
+            "table_bg": "#ffffff",
+            "table_alt_bg": "#f7f3ed",
+            "table_header_bg": "#e6ded2",
+            "table_text": "#111111",
+            "table_border": "#8f8578",
+        }
+    return {
+        "chart_bg": "#0a0a0a",
+        "chart_stroke": "#333333",
+        "axis_label": "#a3a3a3",
+        "axis_title": "#e5e5e5",
+        "grid": "#333333",
+        "usage_color": "#7cc7ff",
+        "charge_color": "#9ca3af",
+        "table_bg": "#0f131a",
+        "table_alt_bg": "#111722",
+        "table_header_bg": "#181b23",
+        "table_text": "#f5f5f5",
+        "table_border": "#333333",
+    }
 
 
 def add_total(df: pd.DataFrame) -> pd.DataFrame:
@@ -1063,6 +1409,124 @@ def _strip_total_and_parse_dates(df: pd.DataFrame) -> pd.DataFrame:
     return d.dropna(subset=["bill_period_end"])
 
 
+def _billing_days_by_account(s: pd.Series) -> pd.Series:
+    d = s.diff().dt.days.astype(float)
+    med = d.median()
+    if pd.isna(med) or float(med) < 1:
+        med = 30.0
+    return d.fillna(med).clip(lower=1)
+
+
+def _local_anomalies_export_table(
+    usage_full_history: pd.DataFrame,
+    *,
+    view_period_df: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    """Local fallback when the running backend does not yet expose POST /api/anomalies."""
+    df = _strip_total_and_parse_dates(usage_full_history)
+    if df.empty:
+        return pd.DataFrame()
+
+    p = anomaly_params_from_session()
+    if "contract_account" in df.columns:
+        df["account"] = df["contract_account"].astype(str).str.strip()
+    elif "account_number" in df.columns:
+        df["account"] = df["account_number"].astype(str).str.strip()
+    else:
+        df["account"] = "Single_Account"
+
+    for col in ("usage_kwh", "charges"):
+        df[col] = pd.to_numeric(df[col], errors="coerce") if col in df.columns else np.nan
+    df = df.dropna(subset=["usage_kwh"])
+    df = df[df["usage_kwh"] >= 0].copy()
+    if df.empty:
+        return pd.DataFrame()
+
+    df = df.sort_values(["account", "bill_period_end"]).reset_index(drop=True)
+    df["billing_days"] = df.groupby("account", group_keys=False)["bill_period_end"].transform(
+        _billing_days_by_account
+    )
+    df["daily_kwh"] = np.where(df["billing_days"] > 0, df["usage_kwh"] / df["billing_days"], np.nan)
+    df["month"] = df["bill_period_end"].dt.month
+    df["same_month_median_daily_kwh"] = df.groupby(["account", "month"])["daily_kwh"].transform("median")
+    usage_delta = df["daily_kwh"] - df["same_month_median_daily_kwh"]
+    usage_ratio = np.where(
+        df["same_month_median_daily_kwh"] > 0,
+        usage_delta / df["same_month_median_daily_kwh"],
+        0.0,
+    )
+    df["usage_spike"] = (
+        (df.groupby(["account", "month"])["daily_kwh"].transform("count") > 1)
+        & (usage_ratio >= float(p["pct_spike_limit"]))
+        & (usage_delta >= float(p["abs_spike_limit"]))
+    )
+    first_seen = df.groupby("account")["bill_period_end"].transform("min")
+    df["new_activation"] = df["bill_period_end"].eq(first_seen)
+
+    df["$/kWh"] = np.where(df["usage_kwh"] > 0, df["charges"] / df["usage_kwh"], np.nan)
+    med_cpk = df.groupby("account")["$/kWh"].transform("median")
+    df["billing_outlier"] = (
+        (df["usage_kwh"] >= float(p["billing_min_kwh"]))
+        & med_cpk.notna()
+        & (med_cpk > 0)
+        & (df["$/kWh"] > (med_cpk * float(p["billing_median_multiplier"])))
+        & (df["$/kWh"] > med_cpk + float(p["billing_min_delta_cpk"]))
+    )
+    med_charge = df.groupby("account")["charges"].transform("median")
+    df["charge_spike"] = (
+        (df["charges"] >= float(p["charge_min_usd"]))
+        & med_charge.notna()
+        & (med_charge > 0)
+        & (df["charges"] > float(p["charge_median_multiplier"]) * med_charge)
+    )
+
+    mask = df["usage_spike"] | df["new_activation"] | df["billing_outlier"] | df["charge_spike"]
+    out = df.loc[mask].copy()
+    if out.empty:
+        return pd.DataFrame()
+
+    def _notes(row):
+        parts = []
+        if bool(row.get("usage_spike")):
+            normal = row.get("same_month_median_daily_kwh")
+            current = row.get("daily_kwh")
+            if pd.notna(normal) and normal > 0 and pd.notna(current):
+                pct = ((current - normal) / normal) * 100
+                parts.append(f"Spike of {pct:.1f}%. Current usage is {current:.1f} kWh/day vs historical normal of {normal:.1f} kWh/day.")
+            else:
+                parts.append("Usage is unusually high for this account.")
+        if bool(row.get("new_activation")):
+            parts.append("New activation or first bill in available history.")
+        if bool(row.get("billing_outlier")) and pd.notna(row.get("$/kWh")):
+            parts.append(f"Billing: ${row['$/kWh']:.4f}/kWh vs typical median ${med_cpk.loc[row.name]:.4f}/kWh for this account.")
+        if bool(row.get("charge_spike")) and pd.notna(row.get("charges")):
+            parts.append(f"Charge: ${row['charges']:,.2f} vs typical median bill ${med_charge.loc[row.name]:,.2f}.")
+        return " ".join(parts).strip()
+
+    out["notes"] = out.apply(_notes, axis=1)
+    if view_period_df is not None and not view_period_df.empty:
+        vp = _strip_total_and_parse_dates(view_period_df)
+        if not vp.empty:
+            out = out[(out["bill_period_end"] >= vp["bill_period_end"].min()) & (out["bill_period_end"] <= vp["bill_period_end"].max())]
+
+    if out.empty:
+        return pd.DataFrame()
+    return pd.DataFrame(
+        {
+            "bill_period_end": out["bill_period_end"].dt.strftime("%Y-%m-%d"),
+            "account": out["account"].astype(str),
+            "usage_kwh": out["usage_kwh"],
+            "charges": out["charges"],
+            "$/kWh": pd.to_numeric(out["$/kWh"], errors="coerce").round(4),
+            "usage_spike": out["usage_spike"],
+            "new_activation": out["new_activation"],
+            "billing_outlier": out["billing_outlier"],
+            "charge_spike": out["charge_spike"],
+            "notes": out["notes"],
+        }
+    ).reset_index(drop=True)
+
+
 def build_anomalies_export_table(
     usage_full_history: pd.DataFrame,
     *,
@@ -1070,11 +1534,11 @@ def build_anomalies_export_table(
 ) -> pd.DataFrame:
     """Same grid as the Anomalies table / Excel download (for multi-sheet workbooks)."""
     pe = _strip_total_and_parse_dates(usage_full_history)
-    if pe.empty or "contract_account" not in pe.columns:
+    if pe.empty:
         return pd.DataFrame()
-    acct = str(pe["contract_account"].dropna().iloc[0])
     p = anomaly_params_from_session()
-    params = {
+    payload = {
+        "usage_records": _usage_records_for_api(pe),
         "pct_spike_limit": p["pct_spike_limit"],
         "abs_spike_limit": p["abs_spike_limit"],
         "billing_median_multiplier": p["billing_median_multiplier"],
@@ -1086,9 +1550,20 @@ def build_anomalies_export_table(
     if view_period_df is not None and not view_period_df.empty:
         vp = _strip_total_and_parse_dates(view_period_df)
         if not vp.empty:
-            params["view_start"] = vp["bill_period_end"].min().date().isoformat()
-            params["view_end"] = vp["bill_period_end"].max().date().isoformat()
-    r = _api_request("get", f"/api/anomalies/{acct}", params=params)
+            payload["view_records"] = _usage_records_for_api(vp)
+    try:
+        r = requests.post(f"{BACKEND_URL}/api/anomalies", json=payload, timeout=600)
+        if r.status_code == 404:
+            return _local_anomalies_export_table(usage_full_history, view_period_df=view_period_df)
+        r.raise_for_status()
+    except requests.exceptions.ConnectionError:
+        return _local_anomalies_export_table(usage_full_history, view_period_df=view_period_df)
+    except requests.exceptions.HTTPError:
+        try:
+            detail = r.json().get("detail", "")
+        except Exception:
+            detail = (getattr(r, "text", None) or "").strip()
+        raise RuntimeError(f"{r.status_code} {r.reason}" + (f" — {detail}" if detail else "")) from None
     records = r.json().get("records") or []
     if not records:
         return pd.DataFrame()
@@ -1132,7 +1607,7 @@ def render_anomalies_section(
         "charge_spike": st.column_config.CheckboxColumn("charge vs median"),
         "notes": st.column_config.TextColumn("notes", width="large"),
     }
-    st.dataframe(disp, width="stretch", hide_index=True, column_config=cfg)
+    _st_dataframe(disp, width="stretch", hide_index=True, column_config=cfg)
     safe = re.sub(r"[^\w]+", "_", key_suffix).strip("_")[:40] or "anomalies"
     st.download_button(
         "Download anomalies (Excel)",
@@ -1218,10 +1693,11 @@ def render_account_usage_charges_section(
         if profile:
             st.markdown('<div class="section-title">Profile Details (from PDF)</div>', unsafe_allow_html=True)
             profile_fields = [
-                "ACCOUNT NO.", "Phone Number", "Mailing Address",
+                "ACCOUNT NO.", "Account Profile", "Phone Number", "Mailing Address",
                 "Service Address", "Customer Class", "Turn On Date",
                 "District Office", "Meter Number(s)", "Current Rate",
-                "Voltage", "Delivery Phase", "Billing Status", "Key Account Manager",
+                "Tax District", "NAICS Code", "Voltage", "Delivery Phase",
+                "Minimum Demand", "Facility Charge", "Billing Status", "Key Account Manager",
             ]
             items = [
                 info_item(lbl, str(profile[lbl]))
@@ -1241,19 +1717,33 @@ def render_account_usage_charges_section(
     with _utitle:
         st.markdown('<div class="section-title">Usage & Charges Over Time</div>', unsafe_allow_html=True)
     with _umode:
-        if hasattr(st, "toggle"):
-            _table_only = st.toggle(
-                "Table",
-                value=False,
-                key=_ktoggle,
-                help="Off: monthly charts. On: billing records table.",
+        _gcol, _toggle_col, _tcol = st.columns([0.44, 0.12, 0.44], gap="small")
+        with _gcol:
+            st.markdown(
+                '<div style="text-align:right; padding-top:0.42rem; font-weight:700;">Graph</div>',
+                unsafe_allow_html=True,
             )
-        else:
-            _table_only = st.checkbox(
-                "Table",
-                value=False,
-                key=_ktoggle,
-                help="Off: monthly charts. On: billing records table.",
+        with _toggle_col:
+            if hasattr(st, "toggle"):
+                _table_only = st.toggle(
+                    "Graph or table",
+                    value=False,
+                    key=_ktoggle,
+                    help="Off: monthly charts. On: billing records table.",
+                    label_visibility="collapsed",
+                )
+            else:
+                _table_only = st.checkbox(
+                    "Graph or table",
+                    value=False,
+                    key=_ktoggle,
+                    help="Off: monthly charts. On: billing records table.",
+                    label_visibility="collapsed",
+                )
+        with _tcol:
+            st.markdown(
+                '<div style="text-align:left; padding-top:0.42rem; font-weight:700;">Table</div>',
+                unsafe_allow_html=True,
             )
     st.caption(
         "Every calendar month from your first bill through your last bill is shown. "
@@ -1306,23 +1796,28 @@ def render_account_usage_charges_section(
                 )
 
                 def _usage_charges_theme(chart: alt.Chart) -> alt.Chart:
+                    colors = theme_palette()
                     return (
-                        chart.properties(height=320 if _n_months > 18 else 280)
-                        .configure(background="#0a0a0a")
-                        .configure_view(stroke="#333333")
+                        chart.properties(
+                            height=320 if _n_months > 18 else 280,
+                            usermeta={"embedOptions": {"actions": False}},
+                        )
+                        .configure(background=colors["chart_bg"])
+                        .configure_view(stroke=colors["chart_stroke"])
                         .configure_axis(
-                            labelColor="#a3a3a3",
-                            titleColor="#e5e5e5",
-                            gridColor="#333333",
-                            domainColor="#333333",
+                            labelColor=colors["axis_label"],
+                            titleColor=colors["axis_title"],
+                            gridColor=colors["grid"],
+                            domainColor=colors["chart_stroke"],
                         )
                     )
 
+                _colors = theme_palette()
                 with c_left:
                     st.markdown("**Usage (kWh) by month**")
                     ch_u = _usage_charges_theme(
                         alt.Chart(chart_df)
-                        .mark_area(line=True, color="#c4c4c4", interpolate="monotone")
+                        .mark_area(line=True, color=_colors["usage_color"], interpolate="monotone", opacity=0.68)
                         .encode(
                             x=_axis_x,
                             y=alt.Y("Usage (kWh):Q", title="kWh"),
@@ -1333,7 +1828,7 @@ def render_account_usage_charges_section(
                     st.markdown("**Charges ($) by month**")
                     ch_c = _usage_charges_theme(
                         alt.Chart(chart_df)
-                        .mark_area(line=True, color="#9ca3af", interpolate="monotone")
+                        .mark_area(line=True, color=_colors["charge_color"], interpolate="monotone", opacity=0.68)
                         .encode(
                             x=_axis_x,
                             y=alt.Y("Charges ($):Q", title="$"),
@@ -1350,10 +1845,49 @@ def render_account_usage_charges_section(
                 st.caption("Install **altair** for month names on the horizontal axis (`pip install altair`).")
 
     if _show_table:
-        st.markdown('<div class="section-title">All Billing Records</div>', unsafe_allow_html=True)
-        if disp.empty:
-            st.info("No billing records.")
+        if chart_df.empty:
+            st.info("No monthly billing rows.")
         else:
+            c_left, c_right = st.columns(2, gap="medium")
+            table_monthly = chart_df.copy()
+            table_monthly["bill_period_end"] = pd.to_datetime(
+                table_monthly["bill_period_end"], errors="coerce"
+            ).dt.strftime("%Y-%m")
+            with c_left:
+                st.markdown("**Usage (kWh) by month**")
+                usage_table = table_monthly[["bill_period_end", "Usage (kWh)"]].rename(
+                    columns={"bill_period_end": "Month"}
+                )
+                _st_dataframe(
+                    usage_table,
+                    width="stretch",
+                    height=420,
+                    hide_index=True,
+                    column_config={
+                        "Month": st.column_config.TextColumn("Month"),
+                        "Usage (kWh)": st.column_config.NumberColumn("Usage (kWh)", format="%.0f"),
+                    },
+                    key=f"{widget_key_prefix}usage_monthly_table",
+                )
+            with c_right:
+                st.markdown("**Charges ($) by month**")
+                charges_table = table_monthly[["bill_period_end", "Charges ($)"]].rename(
+                    columns={"bill_period_end": "Month"}
+                )
+                _st_dataframe(
+                    charges_table,
+                    width="stretch",
+                    height=420,
+                    hide_index=True,
+                    column_config={
+                        "Month": st.column_config.TextColumn("Month"),
+                        "Charges ($)": st.column_config.NumberColumn("Charges ($)", format="$%.2f"),
+                    },
+                    key=f"{widget_key_prefix}charges_monthly_table",
+                )
+
+        if not disp.empty:
+            st.markdown('<div class="section-title">All Billing Records</div>', unsafe_allow_html=True)
             acct_full = pd.concat(
                 [disp.reset_index(drop=True), compute_total_row_from_detail(disp, "Bill Period")],
                 ignore_index=True,
@@ -1485,7 +2019,7 @@ def render_rate_compare_tab(
                     gd["bill_period_end"], errors="coerce"
                 ).dt.strftime("%Y-%m-%d")
                 gd_wb = gd.copy()
-                st.dataframe(
+                _st_dataframe(
                     gd,
                     width="stretch",
                     height=460,
@@ -1656,7 +2190,7 @@ def render_schedule_compare_tab(
                     gap_cfg[c] = st.column_config.NumberColumn(c, format="%.0f")
                 else:
                     gap_cfg[c] = st.column_config.TextColumn(c)
-            st.dataframe(gsd, width="stretch", height=460, hide_index=True, column_config=gap_cfg)
+            _st_dataframe(gsd, width="stretch", height=460, hide_index=True, column_config=gap_cfg)
             _y3 = re.sub(r"[^\w]+", "_", str(year_label3))[:32]
             st.download_button(
                 "Download schedule gap table (Excel)",
@@ -1731,9 +2265,104 @@ def _pastusage_batches_api_payload(batches_to_load: pd.DataFrame) -> list[dict]:
     return rows
 
 
+def _session_uploaded_bill_options() -> pd.DataFrame:
+    rows = st.session_state.get("uploaded_bill_options_session", [])
+    cols = [
+        "batch_id",
+        "source_pdf",
+        "account_number",
+        "customer_name",
+        "bill_year",
+        "uploaded_at",
+        "row_count",
+        "_session_only",
+    ]
+    if not rows:
+        return pd.DataFrame(columns=cols)
+    out = pd.DataFrame(rows)
+    for col in cols:
+        if col not in out.columns:
+            out[col] = pd.NA
+    out["uploaded_at"] = pd.to_datetime(out["uploaded_at"], errors="coerce")
+    out["_session_only"] = out["_session_only"].fillna(True)
+    return out[cols]
+
+
+def _remember_uploaded_bill_payload(payload: dict, usage_df: pd.DataFrame, source_pdf: str) -> None:
+    if usage_df is None or usage_df.empty:
+        return
+    batch_id = str(payload.get("batch_id", "") or "").strip()
+    if not batch_id:
+        return
+    acct = str(payload.get("account_number", "") or "").strip()
+    name = str(payload.get("account_name", "") or "").strip()
+    if not acct and "contract_account" in usage_df.columns and not usage_df["contract_account"].dropna().empty:
+        acct = str(usage_df["contract_account"].dropna().iloc[0]).strip()
+    if not name and "customer" in usage_df.columns and not usage_df["customer"].dropna().empty:
+        name = str(usage_df["customer"].dropna().iloc[0]).strip()
+    if not acct:
+        return
+
+    d = usage_df.copy()
+    d["bill_period_end"] = pd.to_datetime(d.get("bill_period_end"), errors="coerce")
+    d = d.dropna(subset=["bill_period_end"])
+    uploaded_at = pd.Timestamp.now().isoformat()
+    year_counts = d["bill_period_end"].dt.year.astype(str).value_counts().to_dict()
+
+    option_rows = st.session_state.get("uploaded_bill_options_session", [])
+    option_rows = [
+        r for r in option_rows
+        if not (str(r.get("batch_id", "")).strip() == batch_id)
+    ]
+    for year, count in sorted(year_counts.items()):
+        option_rows.append(
+            {
+                "batch_id": batch_id,
+                "source_pdf": source_pdf,
+                "account_number": acct,
+                "customer_name": name or "Unknown Customer",
+                "bill_year": str(year),
+                "uploaded_at": uploaded_at,
+                "row_count": int(count),
+                "_session_only": True,
+            }
+        )
+    st.session_state["uploaded_bill_options_session"] = option_rows
+
+    records_cache = st.session_state.get("uploaded_usage_records_session", {})
+    records_cache[batch_id] = {
+        "account_number": acct,
+        "records": _usage_records_for_api(d),
+        "profile": payload.get("profile") or {},
+    }
+    st.session_state["uploaded_usage_records_session"] = records_cache
+
+
+def _session_usage_records_for_batches(batches_to_load: pd.DataFrame) -> list[dict] | None:
+    cache = st.session_state.get("uploaded_usage_records_session", {})
+    if not cache or batches_to_load is None or batches_to_load.empty:
+        return None
+    records: list[dict] = []
+    seen: set[str] = set()
+    for _, row in batches_to_load.iterrows():
+        bid = str(row.get("batch_id", "") or "").strip()
+        if not bid or bid in seen or bid not in cache:
+            continue
+        seen.add(bid)
+        records.extend(cache[bid].get("records") or [])
+    return records or None
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def _fetch_uploaded_bill_options_api(backend_base: str) -> tuple[dict, ...]:
+    """Persisted bill list from the API (SQLite via backend). Survives page refresh."""
+    r = requests.get(f"{backend_base}/api/bills", timeout=120)
+    r.raise_for_status()
+    payload = r.json()
+    return tuple(payload) if isinstance(payload, list) else tuple()
+
+
 def fetch_uploaded_bill_options() -> pd.DataFrame:
-    r = _api_request("get", "/api/bills")
-    rows = r.json()
     _cols = [
         "batch_id",
         "source_pdf",
@@ -1743,8 +2372,20 @@ def fetch_uploaded_bill_options() -> pd.DataFrame:
         "uploaded_at",
         "row_count",
     ]
-    if not rows:
-        return pd.DataFrame(columns=_cols)
+    try:
+        rows = list(_fetch_uploaded_bill_options_api(BACKEND_URL))
+    except requests.exceptions.RequestException as exc:
+        rows = []
+        if not _session_uploaded_bill_options().empty:
+            st.warning(
+                f"Could not refresh saved bills from the server ({exc}). "
+                "Showing bills uploaded in this browser session only."
+            )
+        else:
+            st.warning(
+                f"Could not load saved bills from the server ({exc}). "
+                "Start the backend API, then refresh this page."
+            )
     norm = []
     for x in rows:
         norm.append(
@@ -1758,7 +2399,25 @@ def fetch_uploaded_bill_options() -> pd.DataFrame:
                 "row_count": int(x.get("row_count", 0)),
             }
         )
-    return pd.DataFrame(norm)
+    api_df = pd.DataFrame(norm, columns=_cols)
+    session_df = _session_uploaded_bill_options()
+    out = pd.concat([api_df, session_df[_cols]], ignore_index=True)
+    if not out.empty:
+        out["account_number"] = out["account_number"].astype(str).str.strip()
+        out["customer_name"] = out["customer_name"].astype(str).str.strip()
+        out["bill_year"] = out["bill_year"].astype(str)
+        out["uploaded_at"] = pd.to_datetime(out["uploaded_at"], errors="coerce")
+        out = out[
+            ~(
+                out["account_number"].str.upper().eq("TEST")
+                & out["customer_name"].str.upper().str.contains("TEST", na=False)
+            )
+        ].reset_index(drop=True)
+        out = out.drop_duplicates(
+            subset=["batch_id", "account_number", "customer_name", "bill_year"],
+            keep="first",
+        ).reset_index(drop=True)
+    return out
 
 
 def fetch_version_options(table_name: str) -> pd.DataFrame:
@@ -1774,6 +2433,28 @@ def fetch_version_options(table_name: str) -> pd.DataFrame:
         return pd.DataFrame(data)
     except Exception:
         return empty
+
+
+def fetch_saved_bill_profile(account_number: str, batch_ids: list[str] | None = None) -> dict:
+    cache = st.session_state.get("uploaded_usage_records_session", {})
+    if batch_ids:
+        for bid in batch_ids:
+            cached = cache.get(str(bid).strip()) or {}
+            prof = cached.get("profile") or {}
+            if isinstance(prof, dict) and prof:
+                return prof
+    params = {"account_number": str(account_number).strip()}
+    if batch_ids:
+        params["batch_ids"] = ",".join(str(x).strip() for x in batch_ids if str(x).strip())
+    try:
+        r = requests.get(f"{BACKEND_URL}/api/bills/profile", params=params, timeout=60)
+        if r.status_code != 200:
+            return {}
+        data = r.json() or {}
+        prof = data.get("profile") or {}
+        return prof if isinstance(prof, dict) else {}
+    except Exception:
+        return {}
 
 
 def add_recalc_history(entry: dict, *, session_key: str = "pastusage_recalc_history") -> None:
@@ -1889,8 +2570,18 @@ def render_ops_recalc_panel(
         display_all["bill_year"] = display_all["bill_year"].astype(str)
 
         acct_choices = (
-            display_all.drop_duplicates(subset=["account_number", "customer_name"])
-            .sort_values(["account_number", "customer_name"])
+            display_all.assign(
+                _uploaded_sort=pd.to_datetime(display_all["uploaded_at"], errors="coerce"),
+                _account_sort=display_all["account_number"].astype(str).str.strip(),
+                _customer_sort=display_all["customer_name"].astype(str).str.strip(),
+            )
+            .groupby(["account_number", "customer_name"], as_index=False, dropna=False)
+            .agg(
+                uploaded_at=("_uploaded_sort", "max"),
+                _account_sort=("_account_sort", "first"),
+                _customer_sort=("_customer_sort", "first"),
+            )
+            .sort_values(["uploaded_at", "_account_sort", "_customer_sort"], ascending=[False, True, True], na_position="last")
             .reset_index(drop=True)
         )
         acct_choices["acct_label"] = (
@@ -1908,7 +2599,7 @@ def render_ops_recalc_panel(
             key=_acct_sb_key,
         )
         st.caption(
-            "Open the dropdown to search: matching rows appear below as you type (numbers, letters, or symbols)."
+            f"Loaded {len(acct_labels)} saved account(s). Open the dropdown to search by number or name."
         )
 
         acct_row = acct_choices.loc[acct_choices["acct_label"] == selected_label].iloc[0]
@@ -1917,25 +2608,12 @@ def render_ops_recalc_panel(
             (display_all["account_number"].astype(str).str.strip() == str(acct_row["account_number"]).strip())
             & (display_all["customer_name"].astype(str).str.strip() == str(acct_row["customer_name"]).strip())
         ]
-        cal_years = sorted(
-            {int(y) for y in for_account["bill_year"].astype(str) if str(y).strip().isdigit()},
-            reverse=True,
-        )
-        period_options: list = ["All Years", "Last 12 Months", *cal_years]
-        selected_period = st.selectbox(
-            "Billing period",
-            options=period_options,
-            key=f"{key_prefix}recalc_year_option",
-        )
+        selected_period = "All Years"
 
         batches_to_load: pd.DataFrame | None = None
         selected_row: pd.Series | None = None
 
         if selected_period in ("All Years", "Last 12 Months"):
-            st.caption(
-                "Combines all saved uploads for this account. If the same bill date appears more than once, "
-                "the newest version is kept."
-            )
             batches_to_load = for_account.sort_values("uploaded_at", ascending=True, na_position="first")
             if batches_to_load.empty:
                 st.warning("No batches found for this account.")
@@ -1970,85 +2648,14 @@ def render_ops_recalc_panel(
 
         if selected_row is not None and batches_to_load is not None:
             try:
-                tariff_versions = fetch_version_options("tariff_rates")
-            except Exception as exc:
-                st.error(f"Failed to load tariff versions: {exc}")
-                tariff_versions = pd.DataFrame()
-            try:
-                rider_versions = fetch_version_options("rider_rates")
-            except Exception as exc:
-                st.error(f"Failed to load rider versions: {exc}")
-                rider_versions = pd.DataFrame()
-
-            try:
-                sources = _calc_sources(BACKEND_URL)
+                selected_schedule_ids = sorted(_schedule_options(BACKEND_URL))
             except Exception:
-                sources = {}
-
-            tariff_choices: list[tuple[str, str, object]] = []
-            if sources.get("tariff_workbook_on_disk"):
-                tariff_choices.append(("Current tariff file (on disk)", "file", "disk"))
-            for _, row in tariff_versions.iterrows():
-                v = int(row["version"])
-                tariff_choices.append((f"Database tariff version {v}", "db", v))
-
-            rider_choices: list[tuple[str, str, object]] = []
-            if sources.get("riders_file_on_disk"):
-                rider_choices.append(("Current riders file (on disk)", "file", None))
-            for _, row in rider_versions.iterrows():
-                v = int(row["version"])
-                rider_choices.append((f"Database rider version {v}", "db", v))
-
-            if not tariff_choices:
-                st.warning(
-                    "No tariff source available. Upload tariffs via **Upload latest tariff** "
-                    "or ensure the database has tariff versions."
-                )
-            if not rider_choices:
-                st.warning(
-                    "No rider source available. Upload riders via **Upload latest riders** "
-                    "or ensure the database has rider versions."
-                )
-
-            col_a, col_b = st.columns(2)
-            with col_a:
-                if tariff_choices:
-                    tariff_labels = [c[0] for c in tariff_choices]
-                    t_pick = st.selectbox(
-                        "Tariff source",
-                        options=tariff_labels,
-                        index=0,
-                        key=f"{key_prefix}recalc_tariff_source",
-                    )
-                    tariff_kind, tariff_payload = next((c[1], c[2]) for c in tariff_choices if c[0] == t_pick)
-                else:
-                    tariff_kind, tariff_payload = None, None
-
-            with col_b:
-                if rider_choices:
-                    rider_labels = [c[0] for c in rider_choices]
-                    r_pick = st.selectbox(
-                        "Rider source",
-                        options=rider_labels,
-                        index=0,
-                        key=f"{key_prefix}recalc_rider_source",
-                    )
-                    rider_kind, rider_payload = next((c[1], c[2]) for c in rider_choices if c[0] == r_pick)
-                else:
-                    rider_kind, rider_payload = None, None
-
-            schedule_options = sorted(_schedule_options(BACKEND_URL))
-            selected_schedule_ids = st.multiselect(
-                "Schedules to calculate",
-                options=schedule_options,
-                default=schedule_options,
-                key=f"{key_prefix}recalc_schedules",
-            )
+                selected_schedule_ids = ["100", "102", "110", "120", "154"]
+            tariff_kind, tariff_payload = "file", None
+            rider_kind, rider_payload = "file", None
 
             if st.button("Run recalculation", type="primary", key=f"{key_prefix}recalc_all_btn"):
-                if not tariff_choices or not rider_choices:
-                    st.warning("A tariff source and a rider source are both required.")
-                elif not selected_schedule_ids:
+                if not selected_schedule_ids:
                     st.warning("Select at least one schedule.")
                 else:
                     try:
@@ -2074,6 +2681,7 @@ def render_ops_recalc_panel(
                                 rider_api_version = int(rider_payload)
 
                             batches_pl = _pastusage_batches_api_payload(batches_to_load)
+                            session_usage_records = _session_usage_records_for_batches(batches_to_load)
                             if selected_period == "All Years":
                                 period_kw: dict = {"period": "All Years"}
                                 period_slug = "all_years"
@@ -2088,8 +2696,6 @@ def render_ops_recalc_panel(
                                 period_hist = str(int(selected_period))
 
                             body = {
-                                "account_number": str(selected_row["account_number"]).strip(),
-                                "batches": batches_pl,
                                 "schedule_ids": list(selected_schedule_ids),
                                 "tariff_source": tariff_api_source,
                                 "tariff_version": tariff_api_version,
@@ -2097,11 +2703,29 @@ def render_ops_recalc_panel(
                                 "rider_version": rider_api_version,
                                 **period_kw,
                             }
+                            if session_usage_records is not None:
+                                body["usage_records"] = session_usage_records
+                            else:
+                                body["account_number"] = str(selected_row["account_number"]).strip()
+                                body["batches"] = batches_pl
                             r = _api_request("post", "/api/calculate", json=body)
                             recalc_result = pd.DataFrame(r.json()["records"])
 
                             st.session_state[result_df_key] = recalc_result
                             st.session_state[schedule_ids_key] = list(selected_schedule_ids)
+                            batch_ids_for_profile = [
+                                str(x.get("batch_id", "")).strip()
+                                for _, x in batches_to_load.iterrows()
+                                if str(x.get("batch_id", "")).strip()
+                            ]
+                            st.session_state[f"{key_prefix}recalc_profile"] = fetch_saved_bill_profile(
+                                str(selected_row["account_number"]).strip(),
+                                batch_ids_for_profile,
+                            )
+                            st.session_state[f"{key_prefix}recalc_source_label"] = (
+                                f"Past usage · {period_hist} · "
+                                f"{int(len(batches_to_load))} saved row group(s)"
+                            )
                             sched_slug = "_".join(str(s) for s in sorted(selected_schedule_ids))
                             tariff_tag = "disk" if tariff_kind == "file" else f"v{int(tariff_payload)}"
                             rider_tag = "disk" if rider_kind == "file" else f"v{int(rider_payload)}"
@@ -2126,10 +2750,305 @@ def render_ops_recalc_panel(
                                 },
                                 session_key=history_session_key,
                             )
-                            st.success("Recalculation completed.")
-                            st.caption("Downloads, preview, anomalies, and run history are below.")
+                            st.session_state["page"] = "op_past_results"
+                            st.rerun()
                     except Exception as exc:
                         st.error(f"Recalculation failed: {exc}")
+
+
+def _recalc_available_schedules(result_df: pd.DataFrame, schedule_ids: list | None = None) -> list[str]:
+    found = []
+    for col in result_df.columns:
+        m = re.match(r"^ve(\d+)_calculated_amount$", str(col))
+        if m:
+            found.append(m.group(1))
+    if schedule_ids:
+        wanted = [str(s) for s in schedule_ids]
+        found = [s for s in wanted if s in found]
+    return sorted(set(found), key=lambda x: int(x) if str(x).isdigit() else str(x))
+
+
+def _recalc_filter_by_year(result_df: pd.DataFrame, selected_year) -> tuple[pd.DataFrame, str]:
+    df = result_df.copy()
+    df["bill_period_end"] = pd.to_datetime(df["bill_period_end"], errors="coerce")
+    df = df.dropna(subset=["bill_period_end"])
+    return filter_by_year_option(df, selected_year)
+
+
+def render_recalc_rate_compare_tab(
+    result_df: pd.DataFrame,
+    *,
+    contract_id: str,
+    schedule_ids: list | None = None,
+    widget_key_prefix: str = "pastusage_recalc_like_",
+) -> None:
+    schedules = _recalc_available_schedules(result_df, schedule_ids)
+    if not schedules:
+        st.info("No calculated schedule columns are available in this recalculation result.")
+        return
+    kp = widget_key_prefix
+    available_years = build_year_options(result_df)
+    c_year, c_sched, _sp = st.columns([1, 1, 3])
+    with c_year:
+        selected_year = st.selectbox("Year", available_years, key=f"{kp}rc_year")
+    with c_sched:
+        schedule_id = st.selectbox("Schedule", schedules, key=f"{kp}rc_schedule")
+
+    df_year, year_label = _recalc_filter_by_year(result_df, selected_year)
+    if df_year.empty:
+        st.warning(f"No billing data found for {year_label}.")
+        return
+
+    calc_col = f"ve{schedule_id}_calculated_amount"
+    actual_total = pd.to_numeric(df_year.get("charges", 0), errors="coerce").fillna(0).sum()
+    calc_total = pd.to_numeric(df_year.get(calc_col, 0), errors="coerce").fillna(0).sum()
+    total_savings = actual_total - calc_total
+    savings_cls = "kpi-positive" if total_savings >= 0 else "kpi-negative"
+    savings_label = "Total Savings" if total_savings >= 0 else "Total Overpaid"
+    st.markdown(
+        '<div class="kpi-row compare-kpi-band">'
+        + kpi_card(f"Actual Charges ({year_label})", f"${actual_total:,.2f}")
+        + kpi_card(f"VE-{schedule_id} Calculated", f"${calc_total:,.2f}")
+        + kpi_card(savings_label, f"${abs(total_savings):,.2f}", cls=savings_cls)
+        + "</div>",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Detailed Comparison</div>', unsafe_allow_html=True)
+    sched_cols = [
+        c for c in df_year.columns
+        if str(c).startswith(f"ve{schedule_id}_") and "case_type" not in str(c).lower()
+    ]
+    base_cols = [
+        c for c in ["bill_period_end", "current_rate", "usage_kwh", "demand_kw", "charges"]
+        if c in df_year.columns
+    ]
+    detailed = df_year[base_cols + sched_cols].copy()
+    detailed = reorder_first(add_total(detailed))
+    safe_year = re.sub(r"[^\w]+", "_", str(year_label))[:32]
+    render_dataframe_with_fixed_total(
+        detailed,
+        period_col="bill_period_end",
+        column_config=merged_comparison_column_config(detailed),
+        key_prefix=f"{kp}rc_full_{schedule_id}_{safe_year}",
+    )
+    st.download_button(
+        "Download full detail (Excel)",
+        data=export_excel(detailed),
+        file_name=f"{contract_id}_VE{schedule_id}_{year_label}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        key=f"{kp}dl_full_rc_{schedule_id}_{safe_year}",
+    )
+    monthly = monthly_calculated_view_df(detailed)
+    st.markdown('<div class="section-title">Monthly summary</div>', unsafe_allow_html=True)
+    render_dataframe_with_fixed_total(
+        monthly,
+        period_col="bill_period_end",
+        column_config=monthly_view_column_config(monthly),
+        key_prefix=f"{kp}rc_sum_{schedule_id}_{safe_year}",
+    )
+    render_anomalies_section(
+        result_df,
+        view_period_df=df_year,
+        title=f"Anomalies — {year_label}",
+        key_suffix=f"{kp}rc_{schedule_id}_{safe_year}",
+    )
+
+
+def render_recalc_schedule_compare_tab(
+    result_df: pd.DataFrame,
+    *,
+    contract_id: str,
+    schedule_ids: list | None = None,
+    widget_key_prefix: str = "pastusage_recalc_like_",
+) -> None:
+    schedules = _recalc_available_schedules(result_df, schedule_ids)
+    if not schedules:
+        st.info("No calculated schedule columns are available in this recalculation result.")
+        return
+    kp = widget_key_prefix
+    available_years = build_year_options(result_df)
+    c_year, c_sched = st.columns([1, 2])
+    with c_year:
+        selected_year = st.selectbox("Year", available_years, key=f"{kp}sc_year")
+    with c_sched:
+        selected_schedules = st.multiselect(
+            "Schedules to Compare",
+            options=schedules,
+            default=schedules,
+            key=f"{kp}sc_schedules",
+        )
+    if not selected_schedules:
+        st.warning("Select at least one schedule to compare.")
+        return
+
+    df_year, year_label = _recalc_filter_by_year(result_df, selected_year)
+    if df_year.empty:
+        st.warning(f"No billing data found for {year_label}.")
+        return
+
+    actual_total = pd.to_numeric(df_year.get("charges", 0), errors="coerce").fillna(0).sum()
+    comp_cols = [c for c in ["bill_period_end", "usage_kwh", "charges"] if c in df_year.columns]
+    comp = df_year[comp_cols].copy()
+    kpis = kpi_card("Actual Charges", f"${actual_total:,.2f}", year_label)
+    for sid in selected_schedules:
+        calc_col = f"ve{sid}_calculated_amount"
+        calc_val = pd.to_numeric(df_year.get(calc_col, 0), errors="coerce").fillna(0).sum()
+        comp[f"VE-{sid} Calculated ($)"] = pd.to_numeric(df_year.get(calc_col, 0), errors="coerce")
+        diff = actual_total - calc_val
+        cls = "kpi-positive" if diff >= 0 else "kpi-negative"
+        kpis += kpi_card(
+            f"VE-{sid}",
+            f"${calc_val:,.2f}",
+            f"Save ${diff:,.2f}" if diff >= 0 else f"Over ${abs(diff):,.2f}",
+            cls=cls,
+        )
+    st.markdown(f'<div class="kpi-row compare-kpi-band">{kpis}</div>', unsafe_allow_html=True)
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Monthly calculated amounts</div>', unsafe_allow_html=True)
+    result = reorder_first(add_total(comp))
+    safe_year = re.sub(r"[^\w]+", "_", str(year_label))[:32]
+    render_dataframe_with_fixed_total(
+        result,
+        period_col="bill_period_end",
+        column_config=monthly_view_column_config(result),
+        key_prefix=f"{kp}sc_monthly_{safe_year}",
+    )
+    base_name = f"{contract_id}_schedule_comparison_{safe_year}"
+    st.download_button(
+        "Download monthly summary (Excel)",
+        data=export_excel(result),
+        file_name=f"{base_name}_monthly_summary.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        key=f"{kp}dl_sum_sc_{safe_year}",
+    )
+    render_anomalies_section(
+        result_df,
+        view_period_df=df_year,
+        title=f"Anomalies — {year_label}",
+        key_suffix=f"{kp}sc_{safe_year}",
+    )
+
+
+def render_recalc_results_like_upload(
+    result_df: pd.DataFrame,
+    *,
+    result_name: str,
+    profile: dict | None,
+    source_label: str,
+    schedule_ids: list | None,
+    key_prefix: str,
+) -> None:
+    result_df = result_df.copy()
+    result_df["bill_period_end"] = pd.to_datetime(result_df["bill_period_end"], errors="coerce")
+    result_df = result_df.dropna(subset=["bill_period_end"])
+    if result_df.empty:
+        st.info("No results yet. Run **Run recalculation** first (pick account, period, sources, then run).")
+        return
+    contract_id = (
+        str(result_df["contract_account"].dropna().iloc[0]).strip()
+        if "contract_account" in result_df.columns and not result_df["contract_account"].dropna().empty
+        else "Unknown account"
+    )
+    customer_name = (
+        str(result_df["customer"].dropna().iloc[0]).strip()
+        if "customer" in result_df.columns and not result_df["customer"].dropna().empty
+        else "Unknown customer"
+    )
+    effective_profile = dict(profile or {})
+    if not effective_profile:
+        rate = (
+            str(result_df["current_rate"].dropna().iloc[-1]).strip()
+            if "current_rate" in result_df.columns and not result_df["current_rate"].dropna().empty
+            else ""
+        )
+        first_bill = result_df["bill_period_end"].min().strftime("%Y-%m-%d")
+        last_bill = result_df["bill_period_end"].max().strftime("%Y-%m-%d")
+        effective_profile = {
+            "ACCOUNT NO.": contract_id,
+            "Account Profile": customer_name,
+            "Current Rate": rate,
+            "Billing Status": "Saved usage",
+            "Turn On Date": f"{first_bill} to {last_bill}",
+        }
+    st.markdown('<div class="section-title">RECALCULATION RESULTS</div>', unsafe_allow_html=True)
+    nav_left, nav_right = st.columns([4, 1])
+    with nav_left:
+        st.markdown(
+            f'<div class="results-nav">'
+            f'<div class="results-nav-left">'
+            f'<span class="results-nav-mark" aria-hidden="true"></span>'
+            f'<div>'
+            f'<div class="results-nav-title">TROY &amp; BANKS</div>'
+            f'<div class="results-nav-file">{source_label} &nbsp;·&nbsp; {customer_name} &nbsp;·&nbsp; {contract_id}</div>'
+            f'</div>'
+            f'</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+    with nav_right:
+        if st.button("Back to recalculation", type="secondary", key=f"{key_prefix}back_to_recalc"):
+            st.session_state["page"] = "op_past"
+            st.rerun()
+    render_anomaly_detection_settings_expander()
+    _past_tab_labels = ["Account", "Rate compare", "Schedule compare", "Downloads"]
+    _past_tab = _select_persisted_tab(_past_tab_labels, f"{key_prefix}past_results_analysis_tab")
+    if _past_tab == "Account":
+        render_account_usage_charges_section(
+            result_df,
+            profile=effective_profile,
+            widget_key_prefix=f"{key_prefix}acct_",
+            show_profile_section=True,
+        )
+    elif _past_tab == "Rate compare":
+        render_recalc_rate_compare_tab(
+            result_df,
+            contract_id=contract_id,
+            schedule_ids=schedule_ids,
+            widget_key_prefix=f"{key_prefix}rate_",
+        )
+    elif _past_tab == "Schedule compare":
+        render_recalc_schedule_compare_tab(
+            result_df,
+            contract_id=contract_id,
+            schedule_ids=schedule_ids,
+            widget_key_prefix=f"{key_prefix}sched_",
+        )
+    elif _past_tab == "Downloads":
+        summary = monthly_calculated_view_df(result_df)
+        base_name = Path(result_name).stem
+        try:
+            anom = build_anomalies_export_table(result_df, view_period_df=result_df)
+        except Exception:
+            anom = pd.DataFrame()
+        st.download_button(
+            "Download monthly summary (Excel)",
+            data=export_excel(summary),
+            file_name=f"{base_name}_monthly_summary.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key=f"{key_prefix}download_summary",
+        )
+        st.download_button(
+            "Download full recalculation (Excel)",
+            data=export_excel(result_df),
+            file_name=result_name,
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key=f"{key_prefix}download_full",
+        )
+        st.download_button(
+            "Download one workbook (monthly + full + anomalies)",
+            data=export_excel_multi_sheet(
+                {
+                    "Monthly_summary": summary,
+                    "Full_recalculation": result_df,
+                    "Anomalies": anom,
+                }
+            ),
+            file_name=f"{base_name}_workbook_monthly_full_anomalies.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key=f"{key_prefix}download_workbook",
+        )
 
 
 def render_ops_export_panel(
@@ -2141,80 +3060,17 @@ def render_ops_export_panel(
     history_session_key: str = "pastusage_recalc_history",
     anomalies_key_suffix: str = "pastusage_export",
 ) -> None:
-    st.markdown('<div class="section-title">EXPORT AND HISTORY</div>', unsafe_allow_html=True)
     result_df = st.session_state.get(result_df_key)
     result_name = st.session_state.get(result_name_key, "recalculation.xlsx")
 
     if isinstance(result_df, pd.DataFrame) and not result_df.empty:
-        metric_a, metric_b, metric_c = st.columns(3)
-        metric_a.metric("Rows Processed", f"{len(result_df):,}")
-        _sched_run = st.session_state.get(schedule_ids_key) or []
-        _n_all = len(_schedule_options(BACKEND_URL))
-        metric_b.metric(
-            "Schedules Run",
-            str(len(_sched_run)) if _sched_run else str(_n_all),
-        )
-        metric_c.metric("Export File", result_name)
-
-        summary_re = monthly_calculated_view_df(result_df)
-        preview = summary_re.copy()
-        if "bill_period_end" in preview.columns:
-            preview["bill_period_end"] = pd.to_datetime(
-                preview["bill_period_end"], errors="coerce"
-            ).dt.strftime("%Y-%m-%d")
-        st.markdown(
-            '<div class="section-title">Monthly calculated amounts (preview)</div>',
-            unsafe_allow_html=True,
-        )
-        st.caption(
-            "**Monthly summary** — bill dates, usage, charges, and calculated totals. "
-            "**Full recalculation** — all columns from the recalculation run."
-        )
-        st.dataframe(
-            preview,
-            width="stretch",
-            height=420,
-            hide_index=True,
-            column_config=monthly_view_column_config(preview),
-        )
-        base_name = Path(result_name).stem
-        st.download_button(
-            "Download monthly summary (Excel)",
-            data=export_excel(summary_re),
-            file_name=f"{base_name}_monthly_summary.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key=f"{key_prefix}recalc_download_summary_btn",
-        )
-        st.download_button(
-            "Download full recalculation (Excel)",
-            data=export_excel(result_df),
-            file_name=result_name,
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key=f"{key_prefix}recalc_download_btn",
-        )
-        render_anomaly_detection_settings_expander()
-        render_anomalies_section(
+        render_recalc_results_like_upload(
             result_df,
-            view_period_df=result_df,
-            title="Anomalies (recalculation output)",
-            key_suffix=anomalies_key_suffix,
-        )
-        try:
-            anom_combined = build_anomalies_export_table(result_df, view_period_df=result_df)
-        except Exception:
-            anom_combined = pd.DataFrame()
-        st.download_button(
-            "Download one workbook (monthly + full + anomalies)",
-            data=export_excel_multi_sheet(
-                {
-                    "Monthly_summary": summary_re,
-                    "Full_recalculation": result_df,
-                    "Anomalies": anom_combined,
-                }
-            ),
-            file_name=f"{base_name}_workbook_monthly_full_anomalies.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key=f"{key_prefix}recalc_download_workbook_monthly_full_anomalies_btn",
+            result_name=result_name,
+            profile=st.session_state.get(f"{key_prefix}recalc_profile", {}),
+            source_label=st.session_state.get(f"{key_prefix}recalc_source_label", "Past usage recalculation"),
+            schedule_ids=st.session_state.get(schedule_ids_key) or [],
+            key_prefix=f"{key_prefix}recalc_results_",
         )
     else:
         st.info(
@@ -2226,7 +3082,7 @@ def render_ops_export_panel(
     if run_history:
         st.markdown('<div class="section-title">Recent recalculation runs</div>', unsafe_allow_html=True)
         hist_df = pd.DataFrame(run_history)
-        st.dataframe(hist_df, width="stretch", hide_index=True)
+        _st_dataframe(hist_df, width="stretch", hide_index=True)
         st.download_button(
             "Download run history (Excel)",
             data=export_excel(hist_df),
@@ -2237,9 +3093,12 @@ def render_ops_export_panel(
 
 
 def render_past_usage_bills_page() -> None:
-    """Single scrollable page: recalculation form, then export/history (no tabs)."""
+    """Past usage recalculation form."""
     render_ops_recalc_panel()
-    st.divider()
+
+
+def render_past_usage_results_page() -> None:
+    """Dedicated results page for past usage recalculation."""
     render_ops_export_panel()
 
 # ---------------------------------------------------
@@ -2266,13 +3125,15 @@ if st.session_state.get("page") == "operations_hub":
 
 with st.sidebar:
     st.markdown("### Display")
-    st.session_state["ui_theme"] = st.radio(
+    if "ui_theme_selector" not in st.session_state:
+        st.session_state["ui_theme_selector"] = st.session_state.get("ui_theme", "Dark")
+    st.radio(
         "Theme",
         options=["Dark", "Light"],
-        index=0 if st.session_state["ui_theme"] == "Dark" else 1,
         key="ui_theme_selector",
         horizontal=True,
     )
+    st.session_state["ui_theme"] = st.session_state["ui_theme_selector"]
     st.markdown("### Navigate")
     st.markdown(
         '<p class="sidebar-nav-lead">These pages do not share your entries or results.</p>',
@@ -2316,8 +3177,7 @@ with st.sidebar:
         st.rerun()
 
 if st.session_state["ui_theme"] == "Light":
-    st.markdown(
-        """
+    _theme_override_markup = """
 <style>
 /* Light: warm white background, black text */
 [data-testid="stAppViewContainer"] { background: #f7f4ef !important; color: #0a0a0a !important; }
@@ -2375,13 +3235,15 @@ h1, h2, h3, h4, h5, h6, p, span, div, label, small {
 .section-title, .kpi-label, .hero-sub, .results-nav-file, .hero-meta {
     color: #404040 !important;
 }
-.kpi-value, .info-item-value, .results-nav-title {
+.kpi-value, .info-item-value {
     color: #000000 !important;
 }
-.hero-title {
+.hero-title, .results-nav-title {
     background: none !important;
     -webkit-text-fill-color: #000000 !important;
     color: #000000 !important;
+    text-shadow: none !important;
+    filter: none !important;
 }
 
 [data-testid="stTabs"] [role="tablist"] {
@@ -2433,6 +3295,23 @@ h1, h2, h3, h4, h5, h6, p, span, div, label, small {
     background: #57534e !important;
 }
 
+[data-testid="stButtonGroup"] > div {
+    background: #f0ebe3 !important;
+    border-color: #e8e0d6 !important;
+}
+[data-testid="stButtonGroup"] button {
+    color: #404040 !important;
+}
+[data-testid="stButtonGroup"] button[aria-pressed="true"] {
+    color: #000000 !important;
+    background: #ffffff !important;
+    border-color: #d4ccc0 !important;
+}
+[data-testid="stButtonGroup"] button:hover:not([aria-pressed="true"]) {
+    color: #000000 !important;
+    background: #ebe6de !important;
+}
+
 [data-baseweb="select"] > div,
 [data-testid="stTextInput"] input,
 [data-testid="stDateInput"] input {
@@ -2459,30 +3338,27 @@ h1, h2, h3, h4, h5, h6, p, span, div, label, small {
 [data-testid="stFileUploaderDropzone"] svg {
     color: #404040 !important;
 }
-[data-testid="stFileUploaderDropzone"] button {
-    background: #0a0a0a !important;
-    color: #faf8f5 !important;
-    border-color: #0a0a0a !important;
-}
-
+/* Light theme: same button system as dark (primary = light fill; secondary/download = outline) */
 [data-testid="stButton"] > button[kind="primary"]:not(:disabled):not([disabled]):not([aria-disabled="true"]) {
-    background: #0a0a0a !important;
-    color: #faf8f5 !important;
-    border-color: #0a0a0a !important;
+    background: #f0f0f0 !important;
+    color: #0a0a0a !important;
+    border: 1px solid #d4d4d4 !important;
     opacity: 1 !important;
-    -webkit-text-fill-color: #faf8f5 !important;
+    -webkit-text-fill-color: #0a0a0a !important;
 }
 [data-testid="stButton"] > button[kind="primary"]:not(:disabled):not([disabled]):not([aria-disabled="true"]) * {
-    color: #faf8f5 !important;
-    -webkit-text-fill-color: #faf8f5 !important;
+    color: #0a0a0a !important;
+    -webkit-text-fill-color: #0a0a0a !important;
 }
 [data-testid="stButton"] > button[kind="primary"]:not(:disabled):not([disabled]):not([aria-disabled="true"]):hover {
-    background: #262626 !important;
-    border-color: #262626 !important;
+    background: #ffffff !important;
+    border-color: #e5e5e5 !important;
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
 }
 [data-testid="stButton"] > button[kind="primary"]:not(:disabled):not([disabled]):not([aria-disabled="true"]):hover * {
-    color: #faf8f5 !important;
-    -webkit-text-fill-color: #faf8f5 !important;
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
 }
 [data-testid="stButton"] > button[kind="primary"]:not(:disabled):not([disabled]):not([aria-disabled="true"]):focus-visible {
     box-shadow: 0 0 0 2px #a8a29e !important;
@@ -2490,47 +3366,146 @@ h1, h2, h3, h4, h5, h6, p, span, div, label, small {
 [data-testid="stButton"] > button[kind="primary"]:disabled,
 [data-testid="stButton"] > button[kind="primary"][disabled],
 [data-testid="stButton"] > button[kind="primary"][aria-disabled="true"] {
-    background: #d6d3d1 !important;
-    color: #57534e !important;
-    border-color: #a8a29e !important;
+    background: #e7e5e4 !important;
+    color: #78716c !important;
+    border-color: #d6d3d1 !important;
     opacity: 1 !important;
-    -webkit-text-fill-color: #57534e !important;
+    -webkit-text-fill-color: #78716c !important;
 }
 [data-testid="stButton"] > button[kind="primary"]:disabled *,
 [data-testid="stButton"] > button[kind="primary"][disabled] *,
 [data-testid="stButton"] > button[kind="primary"][aria-disabled="true"] * {
-    color: #57534e !important;
-    -webkit-text-fill-color: #57534e !important;
-}
-[data-testid="stDownloadButton"] > button {
-    background: #faf8f5 !important;
-    color: #0a0a0a !important;
-    border: 1px solid #d4ccc0 !important;
-}
-[data-testid="stDownloadButton"] > button * {
-    color: #0a0a0a !important;
-}
-[data-testid="stDownloadButton"] > button:hover {
-    background: #ffffff !important;
-    border-color: #a8a29e !important;
-}
-[data-testid="stDownloadButton"] > button:hover * {
-    color: #0a0a0a !important;
+    color: #78716c !important;
+    -webkit-text-fill-color: #78716c !important;
 }
 
-[data-testid="stButton"] > button[kind="secondary"] {
+[data-testid="stButton"] > button[kind="secondary"],
+[data-testid="stDownloadButton"] > button {
     background: #ffffff !important;
     color: #0a0a0a !important;
-    border-color: #d4ccc0 !important;
+    border: 1px solid #d4ccc0 !important;
+    -webkit-text-fill-color: #0a0a0a !important;
 }
-[data-testid="stButton"] > button[kind="secondary"]:hover {
-    color: #000000 !important;
+[data-testid="stButton"] > button[kind="secondary"] *,
+[data-testid="stDownloadButton"] > button * {
+    color: #0a0a0a !important;
+    -webkit-text-fill-color: #0a0a0a !important;
+}
+[data-testid="stButton"] > button[kind="secondary"]:hover,
+[data-testid="stDownloadButton"] > button:hover {
+    background: #f0ebe3 !important;
     border-color: #a8a29e !important;
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
+}
+[data-testid="stButton"] > button[kind="secondary"]:hover *,
+[data-testid="stDownloadButton"] > button:hover * {
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
+}
+[data-testid="stButton"] > button[kind="secondary"]:focus-visible,
+[data-testid="stDownloadButton"] > button:focus-visible {
+    box-shadow: 0 0 0 2px #d4ccc0 !important;
+}
+
+[data-testid="stFileUploaderDropzone"] button {
+    background: #f0f0f0 !important;
+    color: #0a0a0a !important;
+    border: 1px solid #d4d4d4 !important;
+    -webkit-text-fill-color: #0a0a0a !important;
+}
+[data-testid="stFileUploaderDropzone"] button:hover {
+    background: #ffffff !important;
+    border-color: #e5e5e5 !important;
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
 }
 
 [data-testid="stDataFrame"] {
     border: 1px solid #e8e0d6 !important;
     border-radius: 10px !important;
+}
+
+.vega-embed details,
+.vega-embed.has-actions details,
+.vega-embed details[open],
+.vega-embed.has-actions details[open],
+.vega-embed details summary,
+.vega-embed.has-actions details > summary,
+.vega-embed .vega-actions,
+.vega-embed.has-actions .vega-actions {
+    background: #ffffff !important;
+    color: #111111 !important;
+    border: 1px solid #d4ccc0 !important;
+    box-shadow: 0 8px 22px rgba(0,0,0,0.12) !important;
+}
+.vega-embed details summary,
+.vega-embed.has-actions details > summary {
+    border-radius: 10px !important;
+}
+.vega-embed details summary:hover,
+.vega-embed details summary:focus,
+.vega-embed details summary:focus-visible,
+.vega-embed.has-actions details > summary:hover,
+.vega-embed.has-actions details > summary:focus,
+.vega-embed.has-actions details > summary:focus-visible {
+    background: #f2eee8 !important;
+    color: #111111 !important;
+    outline: 2px solid #d4ccc0 !important;
+}
+.vega-embed details summary::marker,
+.vega-embed.has-actions details > summary::marker {
+    color: #111111 !important;
+}
+.vega-embed details summary svg,
+.vega-embed.has-actions details > summary svg,
+.vega-embed .vega-actions svg,
+.vega-embed.has-actions .vega-actions svg {
+    color: #111111 !important;
+    fill: #111111 !important;
+    stroke: #111111 !important;
+}
+.vega-embed .vega-actions a,
+.vega-embed.has-actions .vega-actions a {
+    color: #111111 !important;
+    background: #ffffff !important;
+}
+.vega-embed .vega-actions a:hover,
+.vega-embed.has-actions .vega-actions a:hover {
+    background: #f2eee8 !important;
+}
+/* Stronger light-mode overrides for Vega/Vega-Embed menus (covers nested lists, tooltips, and any generated menu nodes) */
+.vega-embed details[open] > *,
+.vega-embed .vega-actions-list,
+.vega-embed .vega-actions-list *,
+.vega-embed .vega-actions *,
+.vega-embed .vega-actions button,
+.vega-embed .vega-actions a,
+.vega-embed .vega-actions a *,
+.vega-embed .vega-actions summary,
+.vega-embed .vega-actions summary * {
+    background: #ffffff !important;
+    color: #111111 !important;
+    border-color: #d4ccc0 !important;
+}
+/* Some browsers render the menu as a popover or use role="menu" children */
+.vega-embed [role="menu"],
+.vega-embed [role="menu"] * {
+    background: #ffffff !important;
+    color: #111111 !important;
+}
+[data-baseweb="tooltip"],
+[data-baseweb="tooltip"] > div,
+div[role="tooltip"] {
+    background: #ffffff !important;
+    color: #111111 !important;
+    border: 1px solid #d4ccc0 !important;
+    box-shadow: 0 8px 22px rgba(0,0,0,0.12) !important;
+}
+[data-baseweb="tooltip"] *,
+div[role="tooltip"] * {
+    color: #111111 !important;
+    -webkit-text-fill-color: #111111 !important;
 }
 
 .results-nav-mark { background: #0a0a0a !important; }
@@ -2539,6 +3514,80 @@ h1, h2, h3, h4, h5, h6, p, span, div, label, small {
 [data-testid="stMetric"] [data-testid="stMetricValue"] { color: #000000 !important; }
 
 [data-testid="stExpander"] summary { color: #0a0a0a !important; }
+
+/* Ensure the small rounded Vega toolbar buttons match light card background */
+.vega-embed .vega-actions,
+.vega-embed .vega-actions > summary,
+.vega-embed .vega-actions > summary *,
+.vega-embed .vega-actions button,
+.vega-embed .vega-actions div {
+    background: #ffffff !important;
+    color: #111111 !important;
+    border: 1px solid #d4ccc0 !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
+}
+.vega-embed .vega-actions > summary {
+    padding: 6px !important;
+    border-radius: 12px !important;
+}
+.vega-embed .vega-actions svg,
+.vega-embed .vega-actions a svg {
+    fill: #111111 !important;
+    stroke: #111111 !important;
+}
+
+/* Last-resort override: target any remaining wrappers or inline-styled nodes
+   inside the Vega embed toolbar that may be rendered by different Vega versions
+   or browser popovers. This block is intentionally very specific and placed at
+   the end of the stylesheet to beat other rules. */
+.main .vega-embed .vega-actions,
+.main .vega-embed .vega-actions *,
+.main .vega-embed details[open] > summary,
+.main .vega-embed details[open] > summary *,
+.main .vega-embed [role="toolbar"],
+.main .vega-embed [role="toolbar"] *,
+.main .vega-embed [role="menu"],
+.main .vega-embed [role="menu"] *,
+.main .vega-embed div[style*="background" i],
+.main .vega-embed div[style*="background-color" i],
+.main .vega-embed span[style*="background" i],
+.main .vega-embed span[style*="background-color" i] {
+    background: #ffffff !important;
+    color: #111111 !important;
+    border-color: #d4ccc0 !important;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.08) !important;
+    border-radius: 12px !important;
+}
+.main .vega-embed .vega-actions::before,
+.main .vega-embed .vega-actions::after,
+.main .vega-embed details summary::before,
+.main .vega-embed details summary::after {
+    background: transparent !important;
+}
+
+/* Vega embed chrome only (not Streamlit chart toolbar icons) */
+.vega-embed .vega-actions,
+.vega-embed .vega-actions *,
+.vega-embed details,
+.vega-embed details summary {
+    color: #111111 !important;
+    -webkit-text-fill-color: #111111 !important;
+}
+.vega-embed svg,
+.vega-embed img {
+    filter: none !important;
+}
+.vega-embed [style*="filter" i] {
+    filter: none !important;
+}
+
+/* If the browser is applying a forced-dark mode, this helps preserve intended light visuals for the embed */
+html, body, .stApp, .main {
+    color-scheme: light !important;
+}
+
+
+
 
 .kpi-positive { color: #15803d !important; }
 .kpi-negative { color: #b91c1c !important; }
@@ -2575,13 +3624,6 @@ label[data-testid="stWidgetLabel"] {
     color: #111111 !important;
 }
 
-[data-testid="stButton"] > button[kind="secondary"] * {
-    color: inherit !important;
-}
-[data-testid="stButton"] > button[kind="secondary"]:hover * {
-    color: #000000 !important;
-}
-
 .main a, [data-testid="stMarkdownContainer"] a { color: #1d4ed8 !important; }
 
 [data-testid="stExpander"] [data-testid="stVerticalBlock"] p,
@@ -2590,25 +3632,76 @@ label[data-testid="stWidgetLabel"] {
     color: #111111 !important;
 }
 
-[data-baseweb="popover"] {
-    background-color: #ffffff !important;
-    border: 1px solid #d4ccc0 !important;
-}
-[data-baseweb="popover"] li,
-[data-baseweb="popover"] [role="option"] {
+hr { border-color: #e8e0d6 !important; }
+
+/* Light theme: chart toolbar tray + fullscreen button */
+[data-testid="stElementToolbar"]:has(+ [data-testid="stVegaLiteChart"]) [data-testid="stElementToolbarButtonContainer"] {
+    background: #ffffff !important;
     color: #0a0a0a !important;
-    background-color: #ffffff !important;
+    border: 1px solid #d4ccc0 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+    padding: 0 !important;
 }
-[data-baseweb="popover"] li:hover,
-[data-baseweb="popover"] [role="option"]:hover {
-    background-color: #f0ebe3 !important;
+[data-testid="stElementToolbar"]:has(+ [data-testid="stVegaLiteChart"]) [data-testid="stElementToolbarButton"],
+[data-testid="stElementToolbar"]:has(+ [data-testid="stVegaLiteChart"]) [data-testid="stElementToolbarButton"] button {
+    background: transparent !important;
+    color: #0a0a0a !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+[data-testid="stElementToolbar"]:has(+ [data-testid="stVegaLiteChart"]) [data-testid="stElementToolbarButtonContainer"]:hover {
+    background: #f0ebe3 !important;
+    border-color: #a8a29e !important;
+}
+[data-testid="stElementToolbar"]:has(+ [data-testid="stVegaLiteChart"]) [data-testid="stElementToolbarButton"] button:hover {
+    background: transparent !important;
+    border: none !important;
+    color: #000000 !important;
 }
 
-hr { border-color: #e8e0d6 !important; }
+/* Ensure hero / results header text and controls are high-contrast in light theme */
+.main .hero, .stApp .hero, .block-container .hero,
+.main .results-nav, .results-nav {
+    background: #faf8f5 !important;
+    border-color: #e8e0d6 !important;
+    color: #0b0b0b !important;
+}
+.main .hero .hero-title, .hero .hero-title, .block-container .hero .hero-title,
+.main .results-nav .results-nav-title, .results-nav .results-nav-title {
+    color: #0b0b0b !important;
+    -webkit-text-fill-color: #0b0b0b !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+    filter: none !important;
+    -webkit-text-stroke: 0 !important;
+}
+.main .hero .hero-sub, .hero .hero-sub, .hero .hero-meta,
+.main .results-nav .results-nav-file, .results-nav .results-nav-file {
+            color: #4b4b4b !important;
+            opacity: 1 !important;
+            text-shadow: none !important;
+        }
+
+/* Final forced fallbacks for any remaining inline-styled or injected nodes */
+.main .hero *[style],
+.main .hero [style*="color" i],
+.main .hero [style*="-webkit-text-fill-color" i],
+.main .results-nav *[style],
+.main .results-nav [style*="color" i],
+.main .results-nav [style*="-webkit-text-fill-color" i] {
+    color: #0b0b0b !important;
+    -webkit-text-fill-color: #0b0b0b !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+}
 </style>
-        """,
-        unsafe_allow_html=True,
-    )
+"""
+else:
+    _theme_override_markup = "<style id='tb-app-theme-override'></style>"
+
+st.markdown(_theme_override_markup, unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════
 # PAGE 1 — UPLOAD
@@ -2670,6 +3763,13 @@ if st.session_state["page"] == "upload":
                     batch_id = payload.get("batch_id", "")
                     summaries.append({"file": uf.name, "batch_id": batch_id, "rows": int(payload.get("rows_uploaded", 0))})
                     last_usage, last_profile, last_name = usage_df, profile, uf.name
+                    _remember_uploaded_bill_payload(payload, usage_df, uf.name)
+                    _fetch_uploaded_bill_options_api.clear()
+                    for _key in (
+                        "pastusage_recalc_account_option",
+                        "latest_recalc_account_option",
+                    ):
+                        st.session_state.pop(_key, None)
                 except Exception as e:
                     errors.append(str(e))
             for msg in errors:
@@ -2710,6 +3810,13 @@ elif st.session_state["page"] == "op_past":
 
 
 # ═══════════════════════════════════════════════════════════════
+# PAGE — PAST USAGE RESULTS
+# ═══════════════════════════════════════════════════════════════
+elif st.session_state["page"] == "op_past_results":
+    render_past_usage_results_page()
+
+
+# ═══════════════════════════════════════════════════════════════
 # PAGE 2 — RESULTS
 # ═══════════════════════════════════════════════════════════════
 elif st.session_state["page"] == "results":
@@ -2747,23 +3854,23 @@ elif st.session_state["page"] == "results":
     )
 
     render_anomaly_detection_settings_expander()
-    analysis_tab1, analysis_tab2, analysis_tab3 = st.tabs(["Account", "Rate compare", "Schedule compare"])
-
-    with analysis_tab1:
+    _results_tab_labels = ["Account", "Rate compare", "Schedule compare"]
+    _results_tab = _select_persisted_tab(_results_tab_labels, "results_analysis_tab")
+    if _results_tab == "Account":
         render_account_usage_charges_section(
             usage_df,
             profile=profile,
             widget_key_prefix="",
             show_profile_section=True,
         )
-
-    with analysis_tab2:
+    elif _results_tab == "Rate compare":
         render_rate_compare_tab(usage_df, contract_id=contract_id, widget_key_prefix="")
-
-    with analysis_tab3:
+    elif _results_tab == "Schedule compare":
         render_schedule_compare_tab(usage_df, contract_id=contract_id, widget_key_prefix="")
 
 
 else:
     st.session_state["page"] = "upload"
     st.rerun()
+
+_inject_baseweb_menu_css()

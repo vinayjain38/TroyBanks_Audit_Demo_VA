@@ -19,8 +19,34 @@ def upsert_dataframe(df, table_name, engine, unique_cols):
     df.to_sql(temp_table, con=engine, if_exists='replace', index=False)
     
     # 3. Build the dynamic UPSERT query
+    insert_cols = ", ".join([f'"{col}"' for col in df.columns])
     update_cols = [col for col in df.columns if col not in unique_cols]
-    
+    conflict_cols = ", ".join([f'"{col}"' for col in unique_cols])
+
+    if engine.dialect.name == "sqlite":
+        conflict_conditions = " AND ".join(
+            [f"{table_name}.\"{col}\" = {temp_table}.\"{col}\"" for col in unique_cols]
+        )
+        try:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    f"DELETE FROM {table_name} "
+                    f"WHERE EXISTS (SELECT 1 FROM {temp_table} "
+                    f"WHERE {conflict_conditions});"
+                ))
+                conn.execute(text(
+                    f"INSERT INTO {table_name} ({insert_cols}) "
+                    f"SELECT {insert_cols} FROM {temp_table};"
+                ))
+                conn.execute(text(f"DROP TABLE {temp_table};"))
+            print(f"[SUCCESS] Upserted {len(df)} rows into '{table_name}' using SQLite fallback.")
+            return
+        except Exception as e:
+            print(f"[ERROR] SQLite fallback upsert failed: {e}")
+            with engine.begin() as conn:
+                conn.execute(text(f"DROP TABLE IF EXISTS {temp_table};"))
+            raise e
+
     # Format column names safely with double quotes for Postgres
     set_clause_items = [f'"{col}" = EXCLUDED."{col}"' for col in update_cols]
     
@@ -29,16 +55,13 @@ def upsert_dataframe(df, table_name, engine, unique_cols):
         set_clause_items.append('"uploaded_at" = CURRENT_TIMESTAMP')
         
     set_clause = ", ".join(set_clause_items)
-    insert_cols = ", ".join([f'"{col}"' for col in df.columns])
-    conflict_cols = ", ".join([f'"{col}"' for col in unique_cols])
-    
     upsert_query = f"""
         INSERT INTO {table_name} ({insert_cols})
         SELECT {insert_cols} FROM {temp_table}
         ON CONFLICT ({conflict_cols})
         DO UPDATE SET {set_clause};
     """
-    
+
     # 4. Execute the query and drop the staging table
     try:
         with engine.begin() as conn:
