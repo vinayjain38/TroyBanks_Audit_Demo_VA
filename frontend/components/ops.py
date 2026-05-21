@@ -48,6 +48,7 @@ from .analysis import (
     render_account_usage_charges_section,
 )
 from .tables import (
+    _st_dataframe,
     add_total,
     export_excel,
     export_excel_multi_sheet,
