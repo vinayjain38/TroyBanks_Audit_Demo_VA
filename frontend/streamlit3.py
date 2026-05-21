@@ -3,8 +3,8 @@
 import streamlit as st
 
 import config  # noqa: F401 — loads .env and BACKEND_URL
-from pages import ops, results, upload
-from pages.sidebar import render_sidebar
+from views import ops, results, upload
+from views.sidebar import render_sidebar
 from theme import (
     apply_global_dark_styles,
     apply_light_override_styles,

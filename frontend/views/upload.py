@@ -61,9 +61,9 @@ def render() -> None:
             if not usage_records:
                 errors.append("No usage tables extracted from one of the selected files.")
                 continue
-            usage_df = pd.DataFrame(usage_records)
-            if "bill_period_end" in usage_df.columns:
-                usage_df["bill_period_end"] = pd.to_datetime(usage_df["bill_period_end"], errors="coerce")
+            from components.tables import standardize_usage_dataframe
+
+            usage_df = standardize_usage_dataframe(pd.DataFrame(usage_records))
             profile = payload.get("profile") or {}
             batch_id = payload.get("batch_id", "")
             summaries.append({"file": uf.name, "batch_id": batch_id, "rows": int(payload.get("rows_uploaded", 0))})

@@ -22,9 +22,9 @@ def render() -> None:
         st.session_state["page"] = "upload"
         st.rerun()
 
-    usage_df = usage_df.copy()
-    usage_df["bill_period_end"] = pd.to_datetime(usage_df["bill_period_end"], errors="coerce")
-    usage_df = usage_df.dropna(subset=["bill_period_end"])
+    from components.tables import standardize_usage_dataframe
+
+    usage_df = standardize_usage_dataframe(usage_df.copy())
 
     if usage_df.empty:
         st.error("No valid billing records were extracted from the PDF.")

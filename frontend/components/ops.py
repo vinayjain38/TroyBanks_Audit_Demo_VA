@@ -36,14 +36,27 @@ from api_client import (
 )
 from theme import select_persisted_tab, theme_palette
 
-from .anomalies import build_anomalies_export_table, render_anomaly_detection_settings_expander
+from .anomalies import (
+    build_anomalies_export_table,
+    render_anomaly_detection_settings_expander,
+    render_anomalies_section,
+)
 from .analysis import (
     build_year_options,
     filter_by_year_option,
     kpi_card,
     render_account_usage_charges_section,
 )
-from .tables import _st_dataframe, export_excel, export_excel_multi_sheet, monthly_calculated_view_df
+from .tables import (
+    add_total,
+    export_excel,
+    export_excel_multi_sheet,
+    merged_comparison_column_config,
+    monthly_calculated_view_df,
+    monthly_view_column_config,
+    render_dataframe_with_fixed_total,
+    reorder_first,
+)
 
 
 def render_ops_tariff_panel(*, key_prefix: str = "ltariff_") -> None:
@@ -365,6 +378,8 @@ def render_recalc_rate_compare_tab(
     schedule_ids: list | None = None,
     widget_key_prefix: str = "pastusage_recalc_like_",
 ) -> None:
+    from .tables import add_total, reorder_first
+
     schedules = _recalc_available_schedules(result_df, schedule_ids)
     if not schedules:
         st.info("No calculated schedule columns are available in this recalculation result.")
@@ -446,6 +461,8 @@ def render_recalc_schedule_compare_tab(
     schedule_ids: list | None = None,
     widget_key_prefix: str = "pastusage_recalc_like_",
 ) -> None:
+    from .tables import add_total, reorder_first
+
     schedules = _recalc_available_schedules(result_df, schedule_ids)
     if not schedules:
         st.info("No calculated schedule columns are available in this recalculation result.")
@@ -523,9 +540,9 @@ def render_recalc_results_like_upload(
     schedule_ids: list | None,
     key_prefix: str,
 ) -> None:
-    result_df = result_df.copy()
-    result_df["bill_period_end"] = pd.to_datetime(result_df["bill_period_end"], errors="coerce")
-    result_df = result_df.dropna(subset=["bill_period_end"])
+    from .tables import standardize_usage_dataframe
+
+    result_df = standardize_usage_dataframe(result_df.copy())
     if result_df.empty:
         st.info("No results yet. Run **Run recalculation** first (pick account, period, sources, then run).")
         return

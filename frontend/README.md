@@ -23,7 +23,7 @@ Docker: see root `docker-compose.yml` (UI on port 8501, API on 8000/8001).
 | `api_client.py` | HTTP helpers, schedule proxies, bills/tariff API |
 | `theme.py` | Dark/light CSS, palette, persisted tab control |
 | `styles/` | `dark_global.css`, `light_override.css`, Baseweb overrides |
-| `pages/` | `upload`, `results`, `ops`, `sidebar` |
+| `views/` | `upload`, `results`, `ops`, `sidebar` (internal routers; not Streamlit `pages/`) |
 | `components/` | Shared UI: tables, anomalies, analysis tabs, ops panels |
 
 ### `components/` package

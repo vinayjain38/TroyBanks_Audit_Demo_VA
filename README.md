@@ -180,7 +180,7 @@ This project helps electricity customers in Virginia Beach compare current charg
 ├── frontend/                      Streamlit UI (port 8501)
 │   ├── streamlit3.py              UI entry, routing, theme
 │   ├── api_client.py              Backend HTTP client
-│   ├── pages/                     upload, results, ops, sidebar
+│   ├── views/                     upload, results, ops, sidebar routers
 │   ├── components/                tables, anomalies, analysis, ops
 │   └── styles/                    dark/light CSS
 ├── src/                           Billing engine and batch pipeline

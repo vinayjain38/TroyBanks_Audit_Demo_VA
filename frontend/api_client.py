@@ -117,7 +117,8 @@ class _ScheduleFuncProxy:
             take = [c for c in combined.columns if str(c).startswith(pref)]
             if not take:
                 raise KeyError(f"No schedule columns for VE-{sid} in API response")
-            return combined[take]
+            key = [c for c in ("bill_period_end",) if c in combined.columns]
+            return combined[key + take]
 
         return _run
 

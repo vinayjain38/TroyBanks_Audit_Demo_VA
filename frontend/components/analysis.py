@@ -40,9 +40,11 @@ from .tables import (
     _parse_money,
     _st_dataframe,
     account_billing_column_config,
+    add_total,
     compute_total_row_from_detail,
     export_excel,
     export_excel_multi_sheet,
+    merge_schedule_output,
     merged_comparison_column_config,
     monthly_actual_vs_calculated_gaps,
     monthly_calculated_view_columns,
@@ -365,6 +367,8 @@ def render_rate_compare_tab(
     widget_key_prefix: str = "",
 ) -> None:
     """Rate compare tab — same UI as Upload → Results."""
+    from .tables import add_total, reorder_first
+
     kp = widget_key_prefix
     available_years = build_year_options(usage_df)
     rc_y1, rc_y2, _rc_hdr_spacer = st.columns([1, 1, 3])
@@ -384,10 +388,7 @@ def render_rate_compare_tab(
             schedule_out = SCHEDULE_FUNCS[schedule_id](df_year.copy(), None)
             base_cols = ["bill_period_end", "current_rate", "usage_kwh", "demand_kw", "charges"]
             avail = [c for c in base_cols if c in df_year.columns]
-            merged = pd.concat(
-                [df_year[avail].reset_index(drop=True), schedule_out.reset_index(drop=True)], axis=1,
-            )
-            merged = merged.loc[:, ~merged.columns.duplicated()].reset_index(drop=True)
+            merged = merge_schedule_output(df_year[avail], schedule_out)
 
             calc_col = f"ve{schedule_id}_calculated_amount"
             actual_total = df_year["charges"].sum()
@@ -521,6 +522,8 @@ def render_schedule_compare_tab(
     widget_key_prefix: str = "",
 ) -> None:
     """Schedule compare tab — same UI as Upload → Results."""
+    from .tables import add_total, reorder_first
+
     kp = widget_key_prefix
     available_years3 = build_year_options(usage_df)
     ctrl3a, ctrl3b = st.columns([1, 2])
@@ -552,9 +555,13 @@ def render_schedule_compare_tab(
             try:
                 out = SCHEDULE_FUNCS[sid](df_year3.copy(), None)
                 calc_col = f"ve{sid}_calculated_amount"
+                label = f"VE-{sid} Calculated ($)"
                 if calc_col in out.columns:
-                    comp[f"VE-{sid} Calculated ($)"] = out[calc_col].reset_index(drop=True)
-                    schedule_totals[f"VE-{sid}"] = out[calc_col].sum()
+                    comp = merge_schedule_output(
+                        comp,
+                        out[["bill_period_end", calc_col]].rename(columns={calc_col: label}),
+                    )
+                    schedule_totals[f"VE-{sid}"] = pd.to_numeric(comp[label], errors="coerce").sum()
                 else:
                     st.warning(f"Schedule VE-{sid}: calculated_amount column not found.")
             except Exception as e:

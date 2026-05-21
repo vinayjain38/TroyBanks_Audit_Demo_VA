@@ -62,10 +62,67 @@ def _billing_block():
     return st.container()
 
 
+_DATE_ONLY_COLUMNS = frozenset({"bill_period_end", "bill period", "bill period end"})
+
+
+def _bill_period_display_mask(series: pd.Series) -> pd.Series:
+    return series.astype(str).str.upper() == "TOTAL"
+
+
+def normalize_bill_period_key(series: pd.Series) -> pd.Series:
+    """Canonical billing period for merges (calendar date, no time-of-day drift)."""
+    raw = series.copy()
+    tot_mask = _bill_period_display_mask(raw)
+    parsed = pd.to_datetime(raw, errors="coerce")
+    # normalize() strips time so 2024-03-21 00:00:00 and 2024-03-21 always match
+    keys = parsed.dt.normalize()
+    out = keys.dt.strftime("%Y-%m-%d")
+    out = out.where(parsed.notna(), raw.astype(str))
+    out.loc[tot_mask] = "TOTAL"
+    return out
+
+
+def format_date_only_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Show billing period as YYYY-MM-DD (no 00:00:00) for display tables."""
+    if df is None or df.empty:
+        return df
+    out = df.copy()
+    for col in out.columns:
+        name = str(col).lower()
+        is_period_col = (
+            name in _DATE_ONLY_COLUMNS
+            or col == "Bill Period"
+            or (pd.api.types.is_datetime64_any_dtype(out[col]) and "period" in name)
+        )
+        if not is_period_col:
+            continue
+        out[col] = normalize_bill_period_key(out[col])
+    return out
+
+
+def standardize_usage_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalize any uploaded bill usage frame before session storage or API calls."""
+    if df is None or df.empty:
+        return df
+    out = df.copy()
+    if "bill_period_end" in out.columns:
+        out["bill_period_end"] = pd.to_datetime(out["bill_period_end"], errors="coerce")
+        out = out.dropna(subset=["bill_period_end"])
+        out = out.sort_values("bill_period_end").reset_index(drop=True)
+    for col in ("usage_kwh", "charges", "demand_kw"):
+        if col in out.columns:
+            out[col] = pd.to_numeric(out[col], errors="coerce")
+    if "contract_account" in out.columns:
+        out["contract_account"] = out["contract_account"].astype(str).str.strip()
+    return out
+
+
 def _st_dataframe(df: pd.DataFrame, **kwargs) -> None:
     """``st.dataframe`` wrapper: older Streamlit builds omit ``key`` on dataframes."""
     if not _DATAFRAME_SUPPORTS_KEY:
         kwargs.pop("key", None)
+    if isinstance(df, pd.DataFrame):
+        df = format_date_only_columns(df)
     if st.session_state.get("ui_theme") == "Light" and isinstance(df, pd.DataFrame):
         _render_light_table(df)
         return
@@ -101,8 +158,8 @@ def _st_dataframe(df: pd.DataFrame, **kwargs) -> None:
 def _format_table_value(value) -> str:
     if value is None or pd.isna(value):
         return ""
-    if isinstance(value, pd.Timestamp):
-        return value.strftime("%Y-%m-%d")
+    if isinstance(value, (pd.Timestamp, datetime, date)):
+        return pd.Timestamp(value).strftime("%Y-%m-%d")
     if isinstance(value, (float, np.floating)):
         return f"{float(value):,.2f}"
     if isinstance(value, (int, np.integer)):
@@ -180,6 +237,40 @@ def add_total(df: pd.DataFrame) -> pd.DataFrame:
         row[col] = totals[col]
     row["bill_period_end"] = "TOTAL"
     return pd.concat([df, pd.DataFrame([row])], ignore_index=True)
+
+
+def merge_schedule_output(base: pd.DataFrame, schedule_out: pd.DataFrame) -> pd.DataFrame:
+    """Align schedule API columns to usage rows by bill_period_end (not row index).
+
+    The calculate API may sort/filter rows (e.g. drop zero-usage months); positional assignment
+    mis-labels periods. Merge on a normalized date key so any future upload stays aligned.
+    """
+    if schedule_out is None or schedule_out.empty:
+        return base.copy()
+    left = base.reset_index(drop=True).copy()
+    right = schedule_out.reset_index(drop=True).copy()
+    if "bill_period_end" not in left.columns or "bill_period_end" not in right.columns:
+        return pd.concat([left, right], axis=1)
+
+    left["_period_key"] = normalize_bill_period_key(left["bill_period_end"])
+    right["_period_key"] = normalize_bill_period_key(right["bill_period_end"])
+    tot_left = left["_period_key"] == "TOTAL"
+    tot_right = right["_period_key"] == "TOTAL"
+    left = left.loc[~tot_left].copy()
+    right = right.loc[~tot_right].copy()
+    if right["_period_key"].duplicated().any():
+        right = right.drop_duplicates(subset=["_period_key"], keep="last")
+
+    value_cols = [
+        c for c in right.columns
+        if c not in ("bill_period_end", "_period_key")
+    ]
+    right_merge = right[["_period_key", *value_cols]].copy()
+    overlap = [c for c in value_cols if c in left.columns]
+    right_merge = right_merge.drop(columns=overlap, errors="ignore")
+    merged = left.merge(right_merge, on="_period_key", how="left")
+    merged = merged.drop(columns=["_period_key"], errors="ignore")
+    return merged.reset_index(drop=True)
 
 
 def split_billing_rows_and_total(df: pd.DataFrame, period_col: str) -> tuple[pd.DataFrame, pd.DataFrame]:
