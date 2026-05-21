@@ -66,6 +66,27 @@ def test_fetch_uploaded_bill_options_includes_rows_with_missing_uploaded_at(mock
     )
     result = fetch_uploaded_bill_options()
     assert not result.empty
-    assert set(result["account_number"]) == {"TEST", "009028500412"}
+    assert set(result["account_number"]) == {"009028500412"}
     assert result[result["account_number"] == "009028500412"].shape[0] == 2
     assert pd.isna(result.loc[result["account_number"] == "009028500412", "uploaded_at"]).all()
+
+
+@patch("backend.db_usage.pd.read_sql")
+@patch("backend.db_usage.engine")
+def test_fetch_uploaded_bill_options_cleans_batch_ids(mock_engine, mock_read_sql):
+    mock_conn = MagicMock()
+    mock_engine.connect.return_value.__enter__.return_value = mock_conn
+    from backend.db_usage import fetch_uploaded_bill_options
+
+    mock_read_sql.return_value = pd.DataFrame(
+        {
+            "accountNumber": ["008980201225"],
+            "accountName": ["COUNTY OF NEW KENT"],
+            "year": [2023],
+            "batch_id": ["5dce2126-73bd-52ea-bc08-b1d50d09b76\nb"],
+            "source_pdf": ["8980201225  EAP Report.pdf"],
+            "uploaded_at": ["2026-05-21T11:36:10.286707"],
+        }
+    )
+    result = fetch_uploaded_bill_options()
+    assert result["batch_id"].iloc[0] == "5dce2126-73bd-52ea-bc08-b1d50d09b76b"

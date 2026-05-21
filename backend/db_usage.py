@@ -73,7 +73,7 @@ def fetch_uploaded_bill_options() -> pd.DataFrame:
         bill_year = pd.Series(["Unknown"] * len(raw))
 
     batch_col = (
-        raw["batch_id"].fillna("").astype(str).str.strip()
+        raw["batch_id"].fillna("").astype(str).str.replace(r"\s+", "", regex=True)
         if "batch_id" in raw.columns
         else pd.Series([""] * len(raw), index=raw.index)
     )
@@ -100,6 +100,24 @@ def fetch_uploaded_bill_options() -> pd.DataFrame:
             "uploaded_at": uploaded_at,
         }
     )
+    grouped = grouped[
+        ~(
+            grouped["account_number"].str.upper().eq("TEST")
+            & grouped["customer_name"].str.upper().str.contains("TEST", na=False)
+        )
+    ]
+    if grouped.empty:
+        return pd.DataFrame(
+            columns=[
+                "batch_id",
+                "source_pdf",
+                "account_number",
+                "customer_name",
+                "bill_year",
+                "uploaded_at",
+                "row_count",
+            ]
+        )
     grouped["row_count"] = 1
     grouped = (
         grouped.groupby(
